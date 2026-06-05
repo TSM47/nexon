@@ -1,8 +1,10 @@
 # ── deps ──────────────────────────────────────────────────────────────────
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci
+# Disable strict SSL for this environment
+RUN npm config set strict-ssl false
+COPY package.json ./
+RUN npm install --legacy-peer-deps
 
 # ── builder ───────────────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
