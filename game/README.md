@@ -38,6 +38,17 @@ npm run dev:server
 npm run dev:client
 ```
 
+## Malowana grafika AI (opcjonalnie)
+Domyślnie gra używa spójnego pixel-artu generowanego w kodzie. Możesz włączyć
+**malowane assety** (wygenerowane w Higgsfield, styl Eastward/Ravendawn):
+```bash
+cd game
+bash scripts/fetch-assets.sh   # pobiera postać, bossa i tło areny do client/public/assets/
+npm run dev                    # odśwież przeglądarkę (Ctrl+Shift+R)
+```
+Jeśli pliki w `client/public/assets/` istnieją, klient automatycznie użyje grafiki
+malowanej; w innym wypadku spada do pixel-artu — gra działa w obu przypadkach.
+
 ## Sterowanie
 | Akcja        | Klawisz / mysz   |
 |--------------|------------------|

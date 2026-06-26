@@ -30,6 +30,7 @@ interface EntityView {
   py: number;
   phase: number;
   baseY: number; // bazowe Y sprite'a (do animacji)
+  baseScale: number; // bazowa skala sprite'a (malowane assety są duże i wymagają zmniejszenia)
   lastHp: number; // do liczb obrażeń
   hpPrev: number; // do błysku ekranu lokalnego gracza
 }
@@ -54,6 +55,14 @@ export class GameScene extends Phaser.Scene {
 
   preload() {
     generateAllArt(this);
+    // Opcjonalne malowane assety (Higgsfield) z public/assets/.
+    // Jeśli plików nie ma, loader zgłasza błąd i używamy pixel-artu.
+    this.load.image("art_player", "assets/player.png");
+    this.load.image("art_boss", "assets/boss.png");
+    this.load.image("art_floor", "assets/floor.png");
+    this.load.on("loaderror", (file: Phaser.Loader.File) => {
+      console.info(`[assets] brak "${file.key}" — fallback do pixel-artu`);
+    });
   }
 
   async create() {
@@ -265,8 +274,8 @@ export class GameScene extends Phaser.Scene {
     const freq = moving || fast ? 14 : 4;
     const amp = moving ? 0.1 : idleAmp;
     const s = Math.sin(t * freq + view.phase);
-    view.sprite.scaleY = 1 + s * amp;
-    view.sprite.scaleX = 1 - s * amp * 0.5;
+    view.sprite.scaleY = view.baseScale * (1 + s * amp);
+    view.sprite.scaleX = view.baseScale * (1 - s * amp * 0.5);
     view.sprite.y = view.baseY - Math.abs(s) * (moving ? 4 : 1);
   }
 
@@ -290,10 +299,14 @@ export class GameScene extends Phaser.Scene {
 
   private createPlayerView(p: any): EntityView {
     const baseY = -6;
+    const useArt = this.textures.exists("art_player");
+    const texKey = useArt ? "art_player" : `player_${p.charClass}`;
     const shadow = this.add.ellipse(0, 16, 34, 14, 0x000000, 0.4);
-    const sprite = this.add.image(0, baseY, `player_${p.charClass}`).setOrigin(0.5, 0.7);
-    if (!this.textures.exists(`player_${p.charClass}`)) sprite.setTexture(`player_${DEFAULT_CLASS}`);
-    const weapon = this.add.triangle(0, -28, 0, 0, -5, 12, 5, 12, 0xf2f2f2).setAlpha(0.9);
+    const sprite = this.add.image(0, baseY, texKey).setOrigin(0.5, 0.7);
+    const baseScale = useArt ? this.fitScale(texKey, 52) : 1;
+    sprite.setScale(baseScale);
+    // Wskaźnik kierunku tylko dla pixel-artu (malowany sprite ma własną broń).
+    const weapon = this.add.triangle(0, -28, 0, 0, -5, 12, 5, 12, 0xf2f2f2).setAlpha(useArt ? 0 : 0.9);
     const name = this.add
       .text(0, -42, p.name ?? "Gracz", { fontFamily: "monospace", fontSize: "11px", color: "#cdd6e6" })
       .setOrigin(0.5);
@@ -303,13 +316,17 @@ export class GameScene extends Phaser.Scene {
       .container(p.x, p.y, [shadow, weapon, sprite, hpBg, hpFill, name])
       .setDepth(20);
     container.setData("weapon", weapon);
-    return this.mkView(container, sprite, hpFill, 38, p.x, p.y, p.hp, baseY);
+    return this.mkView(container, sprite, hpFill, 38, p.x, p.y, p.hp, baseY, baseScale);
   }
 
   private createEnemyView(e: any): EntityView {
     const baseY = -10;
+    const useArt = this.textures.exists("art_boss");
+    const texKey = useArt ? "art_boss" : "boss";
     const shadow = this.add.ellipse(0, 30, 76, 28, 0x000000, 0.45);
-    const sprite = this.add.image(0, baseY, "boss").setOrigin(0.5, 0.65);
+    const sprite = this.add.image(0, baseY, texKey).setOrigin(0.5, 0.65);
+    const baseScale = useArt ? this.fitScale(texKey, 110) : 1;
+    sprite.setScale(baseScale);
     const hpBg = this.add.rectangle(0, -56, 96, 8, 0x000000, 0.7);
     const hpFill = this.add.rectangle(-48, -56, 96, 8, 0xd23a4a).setOrigin(0, 0.5);
     const label = this.add
@@ -318,7 +335,13 @@ export class GameScene extends Phaser.Scene {
     const container = this.add
       .container(e.x, e.y, [shadow, sprite, hpBg, hpFill, label])
       .setDepth(15);
-    return this.mkView(container, sprite, hpFill, 96, e.x, e.y, e.hp, baseY);
+    return this.mkView(container, sprite, hpFill, 96, e.x, e.y, e.hp, baseY, baseScale);
+  }
+
+  /** Skala potrzebna, by szerokość tekstury sprowadzić do `targetW` px świata. */
+  private fitScale(key: string, targetW: number): number {
+    const src = this.textures.get(key).getSourceImage();
+    return src.width ? targetW / src.width : 1;
   }
 
   private mkView(
@@ -329,13 +352,15 @@ export class GameScene extends Phaser.Scene {
     x: number,
     y: number,
     hp: number,
-    baseY: number
+    baseY: number,
+    baseScale: number
   ): EntityView {
     return {
       container, sprite, hpFill, hpFullW,
       tx: x, ty: y, px: x, py: y,
       phase: Math.random() * Math.PI * 2,
       baseY,
+      baseScale,
       lastHp: hp,
       hpPrev: hp,
     };
@@ -389,6 +414,15 @@ export class GameScene extends Phaser.Scene {
   // ---------- Świat / oświetlenie ----------
 
   private buildGround() {
+    if (this.textures.exists("art_floor")) {
+      // Malowane tło areny rozciągnięte na cały świat.
+      const img = this.add.image(0, 0, "art_floor").setOrigin(0).setDepth(-10);
+      img.setDisplaySize(MAP.width, MAP.height);
+      const border = this.add.graphics().setDepth(-9);
+      border.lineStyle(PIXEL_SCALE * 2, 0x3a4a66, 0.9);
+      border.strokeRect(0, 0, MAP.width, MAP.height);
+      return;
+    }
     const rt = this.add.renderTexture(0, 0, MAP.width, MAP.height).setOrigin(0).setDepth(-10);
     let seed = 1;
     const rand = () => {
@@ -410,6 +444,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private animateArcane(time: number) {
+    // Malowane tło ma już własny krąg runiczny — nie dublujemy go.
+    if (this.textures.exists("art_floor")) return;
     const t = time / 1000;
     const cx = MAP.width / 2;
     const cy = MAP.height / 2;
