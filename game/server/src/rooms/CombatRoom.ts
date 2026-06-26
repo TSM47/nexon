@@ -58,6 +58,8 @@ export class CombatRoom extends Room<GameState> {
   onCreate() {
     this.setState(new GameState());
     this.setPatchRate(NET.patchRateMs);
+    // Większy zapas na dołączenie (wolne sieci / urządzenia) niż domyślne 8 s.
+    this.setSeatReservationTime(40);
 
     this.spawnEnemy();
 
