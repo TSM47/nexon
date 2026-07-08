@@ -10,10 +10,10 @@ mkdir -p "$DEST"
 CDN="https://d8j0ntlcm91z4.cloudfront.net/user_3FePjzyeygLCeb8PzJWUZtYZaoj"
 
 declare -A ASSETS=(
-  # Bohater: człowiek-łowca w zieleni (pixel art, wycięte tło)
-  [player.png]="$CDN/hf_20260708_224530_c3c3a0ff-600e-4c93-a343-bb73afe93041.png"
-  # NPC: stary kupiec w słomkowym kapeluszu (pixel art, wycięte tło)
-  [npc.png]="$CDN/hf_20260708_224533_d8b4b8cb-e1bb-42ac-959a-3510298c1788.png"
+  # Bohater: człowiek-łowca w zieleni (styl dopasowany do mapy, wycięte tło)
+  [player.png]="$CDN/hf_20260708_225028_26a383f7-5325-41ec-8e47-7cfd53b091d4.png"
+  # NPC: stary kupiec w słomkowym kapeluszu (styl dopasowany do mapy, wycięte tło)
+  [npc.png]="$CDN/hf_20260708_225030_638a68cb-5140-4853-b8b7-214bd43f23ae.png"
   # Boss: mroczny rycerz w karmazynowej zbroi (pixel art, wycięte tło)
   [boss.png]="$CDN/hf_20260708_224536_e052354b-e11f-4e44-9b19-2cdb8f6ce780.png"
   # Mapa: słoneczna średniowieczna łąka z kamiennym kręgiem (pixel art, top-down)
