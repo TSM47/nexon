@@ -97,10 +97,11 @@ export class GameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor("#26471f");
     this.buildGround();
 
-    // Zarejestruj animacje klatkowe, jeśli sprite-sheety zostały pobrane.
-    this.setupSheetAnim("art_player_idle", "player_idle", 4, 5);
-    this.setupSheetAnim("art_player_walk", "player_walk", 4, 9);
-    this.setupSheetAnim("art_npc_idle", "npc_idle", 4, 4);
+    // Zarejestruj animacje klatkowe, jeśli sprite-sheety zostały pobrane
+    // (liczba klatek wykrywana automatycznie po kanale alfa).
+    this.setupSheetAnim("art_player_idle", "player_idle", 5);
+    this.setupSheetAnim("art_player_walk", "player_walk", 12);
+    this.setupSheetAnim("art_npc_idle", "npc_idle", 4);
 
     this.arcane = this.add.graphics().setDepth(1);
 
@@ -223,9 +224,14 @@ export class GameScene extends Phaser.Scene {
       const weapon = view.container.getData("weapon") as Phaser.GameObjects.Triangle;
       weapon.setRotation(Math.atan2(p.aimY, p.aimX) + Math.PI / 2);
       if (view.animPrefix) {
-        // Animacje klatkowe: przełącz idle/walk według faktycznego ruchu.
-        // Próg > ogon interpolacji (lerp nigdy nie domyka się do zera).
-        const moving = Math.hypot(view.tx - view.px, view.ty - view.py) > 1.5;
+        // Animacje klatkowe: lokalny gracz reaguje NATYCHMIAST na klawisze
+        // (zero opóźnienia), zdalni — na ruch interpolowanej pozycji
+        // (próg > ogon interpolacji, który nie domyka się do zera).
+        const moving =
+          id === this.localId
+            ? this.keys.left.isDown || this.keys.right.isDown ||
+              this.keys.up.isDown || this.keys.down.isDown
+            : Math.hypot(view.tx - view.px, view.ty - view.py) > 1.5;
         const key =
           moving && this.anims.exists(`${view.animPrefix}_walk`)
             ? `${view.animPrefix}_walk`
@@ -234,8 +240,9 @@ export class GameScene extends Phaser.Scene {
           view.sprite.play(key);
           // Sheety idle/walk mają różne kadrowanie — po przełączeniu
           // wyrównaj widoczną wysokość postaci do wspólnego celu.
-          if (view.animTargetH) {
-            view.sprite.setScale(this.fitScaleH(`art_${key}`, view.animTargetH));
+          const refH = this.sheetRefH.get(`art_${key}`);
+          if (view.animTargetH && refH) {
+            view.sprite.setScale(view.animTargetH / refH);
           }
         }
       } else {
@@ -359,18 +366,32 @@ export class GameScene extends Phaser.Scene {
   // ---------- Tworzenie widoków ----------
 
   private createPlayerView(p: any): EntityView {
-    const baseY = -6;
+    const FEET_Y = 14; // stopy na cieniu (elipsa na y=16)
+    let baseY = -6;
     const hasAnims = this.anims.exists("player_idle");
-    const useArt = hasAnims || this.textures.exists("art_player");
-    const texKey = hasAnims ? "art_player_idle" : useArt ? "art_player" : `player_${p.charClass}`;
+    const staticArt = !hasAnims && this.textures.exists("art_player") && this.groundStatic("art_player");
+    const useArt = hasAnims || staticArt;
+    const texKey = hasAnims ? "art_player_idle" : staticArt ? "art_player" : `player_${p.charClass}`;
     const shadow = this.add.ellipse(0, 16, 40, 16, 0x000000, 0.4);
-    const sprite = this.add.sprite(0, baseY, texKey).setOrigin(0.5, 0.7);
-    if (hasAnims) sprite.play("player_idle");
     // Postać ma mieć ~100 px wysokości w świecie (pasuje do skali mapy).
     const effH = useArt ? 100 : 54;
-    const baseScale = useArt ? this.fitScaleH(texKey, effH) : 1;
-    sprite.setScale(baseScale);
-    const top = baseY - effH * 0.7;
+    let sprite: Phaser.GameObjects.Sprite;
+    let baseScale = 1;
+    let top: number;
+    if (useArt) {
+      // Grafika przycięta do obrysu, zakotwiczona stopami na cieniu.
+      sprite = this.add
+        .sprite(0, FEET_Y, texKey, hasAnims ? "f0" : "trim")
+        .setOrigin(0.5, 1);
+      if (hasAnims) sprite.play("player_idle");
+      baseScale = effH / (this.sheetRefH.get(texKey) ?? effH);
+      sprite.setScale(baseScale);
+      baseY = FEET_Y;
+      top = FEET_Y - effH;
+    } else {
+      sprite = this.add.sprite(0, baseY, texKey).setOrigin(0.5, 0.7);
+      top = baseY - effH * 0.7;
+    }
     // Wskaźnik kierunku tylko dla pixel-artu (malowany sprite ma własną broń).
     const weapon = this.add.triangle(0, -28, 0, 0, -5, 12, 5, 12, 0xf2f2f2).setAlpha(useArt ? 0 : 0.9);
     const name = this.add
@@ -414,30 +435,118 @@ export class GameScene extends Phaser.Scene {
     return this.mkView(container, sprite, hpFill, 96, e.x, e.y, e.hp, baseY, baseScale);
   }
 
+  /** Wysokość odniesienia (mediana obrysu klatki) per tekstura sheetu. */
+  private sheetRefH = new Map<string, number>();
+
   /**
-   * Tnie poziomy sprite-sheet na `frames` równych klatek i rejestruje
-   * zapętloną animację `animKey`. Zwraca false, gdy tekstury nie ma.
+   * Wykrywa klatki w poziomym sheecie po kanale alfa: klastry
+   * nieprzezroczystych kolumn rozdzielone przezroczystymi przerwami.
+   * Zwraca prostokąty klatek w pikselach źródła (przycięte do obrysu),
+   * dzięki czemu klatki są wyrównane niezależnie od kadrowania AI.
    */
-  private setupSheetAnim(texKey: string, animKey: string, frames: number, fps: number): boolean {
+  private detectFrameBoxes(
+    src: HTMLImageElement | HTMLCanvasElement
+  ): { x: number; y: number; w: number; h: number }[] {
+    const SW = 512;
+    const SH = Math.max(1, Math.round((src.height / src.width) * SW));
+    const c = document.createElement("canvas");
+    c.width = SW;
+    c.height = SH;
+    const ctx = c.getContext("2d");
+    if (!ctx) return [];
+    ctx.drawImage(src, 0, 0, SW, SH);
+    const data = ctx.getImageData(0, 0, SW, SH).data;
+
+    const colTop = new Array<number>(SW).fill(SH);
+    const colBot = new Array<number>(SW).fill(-1);
+    for (let x = 0; x < SW; x++) {
+      for (let y = 0; y < SH; y++) {
+        if (data[(y * SW + x) * 4 + 3] > 16) {
+          if (y < colTop[x]) colTop[x] = y;
+          if (y > colBot[x]) colBot[x] = y;
+        }
+      }
+    }
+
+    // Zbierz klastry kolumn; przerwa >= 4 px próbki kończy klaster.
+    const boxes: { x: number; y: number; w: number; h: number }[] = [];
+    let start = -1;
+    let gap = 0;
+    const close = (end: number) => {
+      let top = SH;
+      let bot = -1;
+      for (let i = start; i <= end; i++) {
+        if (colTop[i] < top) top = colTop[i];
+        if (colBot[i] > bot) bot = colBot[i];
+      }
+      if (bot > top) boxes.push({ x: start, y: top, w: end - start + 1, h: bot - top + 1 });
+      start = -1;
+      gap = 0;
+    };
+    for (let x = 0; x < SW; x++) {
+      if (colBot[x] >= 0) {
+        if (start < 0) start = x;
+        gap = 0;
+      } else if (start >= 0 && ++gap >= 4) {
+        close(x - gap);
+      }
+    }
+    if (start >= 0) close(SW - 1 - gap);
+
+    const fx = src.width / SW;
+    const fy = src.height / SH;
+    return boxes
+      .filter((b) => b.w > 4 && b.h > 4)
+      .map((b) => ({
+        x: Math.floor(b.x * fx),
+        y: Math.floor(b.y * fy),
+        w: Math.ceil(b.w * fx),
+        h: Math.ceil(b.h * fy),
+      }));
+  }
+
+  /**
+   * Tnie sheet na klatki wykryte po alfa i rejestruje zapętloną animację.
+   * Zapamiętuje medianę wysokości klatek do spójnego skalowania.
+   */
+  private setupSheetAnim(texKey: string, animKey: string, fps: number): boolean {
     if (!this.textures.exists(texKey) || this.anims.exists(animKey)) {
       return this.anims.exists(animKey);
     }
     const tex = this.textures.get(texKey);
-    const src = tex.getSourceImage();
-    const fw = Math.floor(src.width / frames);
-    if (fw < 2) return false;
+    const boxes = this.detectFrameBoxes(tex.getSourceImage() as HTMLImageElement);
+    if (boxes.length < 2 || boxes.length > 12) return false;
     const frameNames: string[] = [];
-    for (let i = 0; i < frames; i++) {
+    boxes.forEach((b, i) => {
       const name = `f${i}`;
-      tex.add(name, 0, i * fw, 0, fw, src.height);
+      tex.add(name, 0, b.x, b.y, b.w, b.h);
       frameNames.push(name);
-    }
+    });
+    const heights = boxes.map((b) => b.h).sort((a, b) => a - b);
+    this.sheetRefH.set(texKey, heights[Math.floor(heights.length / 2)]);
     this.anims.create({
       key: animKey,
       frames: frameNames.map((f) => ({ key: texKey, frame: f })),
       frameRate: fps,
       repeat: -1,
     });
+    return true;
+  }
+
+  /** Dodaje przyciętą do obrysu klatkę "trim" dla statycznej grafiki. */
+  private groundStatic(texKey: string): boolean {
+    if (!this.textures.exists(texKey)) return false;
+    if (this.sheetRefH.has(texKey)) return true;
+    const tex = this.textures.get(texKey);
+    const boxes = this.detectFrameBoxes(tex.getSourceImage() as HTMLImageElement);
+    if (!boxes.length) return false;
+    // Obrys łączny (statyczny obraz to jeden klaster, ale scal na wszelki wypadek).
+    const x0 = Math.min(...boxes.map((b) => b.x));
+    const y0 = Math.min(...boxes.map((b) => b.y));
+    const x1 = Math.max(...boxes.map((b) => b.x + b.w));
+    const y1 = Math.max(...boxes.map((b) => b.y + b.h));
+    tex.add("trim", 0, x0, y0, x1 - x0, y1 - y0);
+    this.sheetRefH.set(texKey, y1 - y0);
     return true;
   }
 
@@ -534,17 +643,29 @@ export class GameScene extends Phaser.Scene {
       .setTint(0xffc46b)
       .setDepth(3);
 
+    const FEET_Y = 14;
     this.npcHasAnim = this.anims.exists("npc_idle");
-    const useArt = this.npcHasAnim || this.textures.exists("art_npc");
-    const npcTex = this.npcHasAnim ? "art_npc_idle" : useArt ? "art_npc" : "npc";
+    const staticArt =
+      !this.npcHasAnim && this.textures.exists("art_npc") && this.groundStatic("art_npc");
+    const useArt = this.npcHasAnim || staticArt;
+    const npcTex = this.npcHasAnim ? "art_npc_idle" : staticArt ? "art_npc" : "npc";
     const shadow = this.add.ellipse(0, 16, 40, 16, 0x000000, 0.4);
-    this.npcSprite = this.add.sprite(0, -6, npcTex).setOrigin(0.5, 0.7);
-    if (this.npcHasAnim) this.npcSprite.play("npc_idle");
-    // Kupiec w skali gracza (~95 px wysokości).
+    // Kupiec w skali gracza (~95 px wysokości), stopy na cieniu.
     const effH = useArt ? 95 : 54;
-    this.npcBaseScale = useArt ? this.fitScaleH(npcTex, effH) : 1;
+    let top: number;
+    if (useArt) {
+      this.npcSprite = this.add
+        .sprite(0, FEET_Y, npcTex, this.npcHasAnim ? "f0" : "trim")
+        .setOrigin(0.5, 1);
+      if (this.npcHasAnim) this.npcSprite.play("npc_idle");
+      this.npcBaseScale = effH / (this.sheetRefH.get(npcTex) ?? effH);
+      top = FEET_Y - effH;
+    } else {
+      this.npcSprite = this.add.sprite(0, -6, npcTex).setOrigin(0.5, 0.7);
+      this.npcBaseScale = 1;
+      top = -6 - effH * 0.7;
+    }
     this.npcSprite.setScale(this.npcBaseScale);
-    const top = -6 - effH * 0.7;
     const name = this.add
       .text(0, top - 12, NPC.name, { fontFamily: "monospace", fontSize: "11px", color: "#ffe2a8" })
       .setOrigin(0.5)
