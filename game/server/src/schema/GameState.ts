@@ -1,9 +1,15 @@
-import { Schema, type, MapSchema } from "@colyseus/schema";
+import { Schema, type, MapSchema, ArraySchema } from "@colyseus/schema";
 
 export class Player extends Schema {
   @type("string") id = "";
   @type("string") name = "";
   @type("string") charClass = "ranger";
+  @type("number") gold = 0;
+  /** Posiadane przedmioty (id z katalogu ITEMS). */
+  @type(["string"]) inventory = new ArraySchema<string>();
+  /** Założona broń / pancerz ("" = brak). */
+  @type("string") eqWeapon = "";
+  @type("string") eqArmor = "";
   @type("number") x = 0;
   @type("number") y = 0;
   /** Kierunek celowania – do orientacji sylwetki po stronie klienta. */

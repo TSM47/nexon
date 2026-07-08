@@ -8,6 +8,9 @@ import {
   DASH,
   ENEMY,
   ENEMY_DAMAGE_ENABLED,
+  ITEMS,
+  START_GOLD,
+  INVENTORY_CAP,
   PLAYER,
   MSG,
   type InputMessage,
@@ -34,6 +37,7 @@ interface ProjectileRuntime {
   vx: number;
   vy: number;
   life: number;
+  dmg: number;
 }
 
 interface EnemyRuntime {
@@ -100,6 +104,7 @@ export class CombatRoom extends Room<GameState> {
         vx: dx * SKILLSHOT.speed,
         vy: dy * SKILLSHOT.speed,
         life: SKILLSHOT.lifetime,
+        dmg: SKILLSHOT.damage + (ITEMS[p.eqWeapon]?.dmg ?? 0),
       });
     });
 
@@ -122,6 +127,41 @@ export class CombatRoom extends Room<GameState> {
       rt.iframeTime = DASH.iframes;
     });
 
+    this.onMessage(MSG.buy, (client, itemId: string) => {
+      const p = this.state.players.get(client.sessionId);
+      const def = ITEMS[itemId];
+      if (!p || !def) return;
+      if (p.gold < def.price || p.inventory.length >= INVENTORY_CAP) return;
+      p.gold -= def.price;
+      p.inventory.push(def.id);
+    });
+
+    this.onMessage(MSG.equipToggle, (client, itemId: string) => {
+      const p = this.state.players.get(client.sessionId);
+      const def = ITEMS[itemId];
+      if (!p || !def) return;
+      const idx = p.inventory.indexOf(def.id);
+      if (idx < 0) return;
+
+      if (def.slot === "potion") {
+        // Jednorazowe użycie: ulecz i zdejmij z plecaka.
+        if (!p.alive || p.hp >= p.maxHp) return;
+        p.hp = Math.min(p.maxHp, p.hp + (def.heal ?? 0));
+        p.inventory.splice(idx, 1);
+        return;
+      }
+      if (def.slot === "weapon") {
+        p.eqWeapon = p.eqWeapon === def.id ? "" : def.id;
+        return;
+      }
+      // Pancerz wpływa na maks. HP — przelicz i przytnij bieżące HP.
+      p.eqArmor = p.eqArmor === def.id ? "" : def.id;
+      const base = CLASSES[p.charClass]?.maxHp ?? 100;
+      const bonus = p.eqArmor ? ITEMS[p.eqArmor]?.hp ?? 0 : 0;
+      p.maxHp = base + bonus;
+      p.hp = Math.min(p.hp, p.maxHp);
+    });
+
     this.onMessage(MSG.setClass, (client, classId: string) => {
       const p = this.state.players.get(client.sessionId);
       if (!p || !CLASSES[classId]) return;
@@ -142,6 +182,7 @@ export class CombatRoom extends Room<GameState> {
     p.charClass = def.id;
     p.maxHp = def.maxHp;
     p.hp = def.maxHp;
+    p.gold = START_GOLD;
     const spawn = this.spawnPoint();
     p.x = spawn.x;
     p.y = spawn.y;
@@ -235,7 +276,7 @@ export class CombatRoom extends Room<GameState> {
         if (hit || enemy.state === "dead") return;
         const d = len(proj.x - enemy.x, proj.y - enemy.y);
         if (d <= SKILLSHOT.radius + 28) {
-          enemy.hp = Math.max(0, enemy.hp - SKILLSHOT.damage);
+          enemy.hp = Math.max(0, enemy.hp - prt.dmg);
           hit = true;
         }
       });

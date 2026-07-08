@@ -106,19 +106,35 @@ export const NPC_DIALOG: string[] = [
 
 export type ItemRarity = "common" | "epic" | "legendary";
 
-export interface ShopItem {
+export type ItemSlot = "weapon" | "armor" | "potion";
+
+export interface ItemDef {
+  id: string;
   name: string;
   rarity: ItemRarity;
   price: number;
+  slot: ItemSlot;
+  /** Bonus obrażeń skill-shota (broń). */
+  dmg?: number;
+  /** Bonus maks. HP (pancerz). */
+  hp?: number;
+  /** Ilość leczenia (mikstura, jednorazowa). */
+  heal?: number;
 }
 
-/** Towar kupca (podgląd systemu rzadkości; zakupy wchodzą w M5). */
-export const NPC_STOCK: ShopItem[] = [
-  { name: "Mikstura Życia", rarity: "common", price: 35 },
-  { name: "Miecz Strażnika", rarity: "common", price: 120 },
-  { name: "Płaszcz Cienia", rarity: "epic", price: 950 },
-  { name: "Łuk Pierwszego Świtu", rarity: "legendary", price: 4200 },
-];
+/** Katalog przedmiotów (jedno źródło prawdy dla serwera i klienta). */
+export const ITEMS: Record<string, ItemDef> = {
+  potion: { id: "potion", name: "Mikstura Życia", rarity: "common", price: 35, slot: "potion", heal: 60 },
+  sword: { id: "sword", name: "Miecz Strażnika", rarity: "common", price: 120, slot: "weapon", dmg: 8 },
+  cloak: { id: "cloak", name: "Płaszcz Cienia", rarity: "epic", price: 950, slot: "armor", hp: 40 },
+  bow: { id: "bow", name: "Łuk Pierwszego Świtu", rarity: "legendary", price: 4200, slot: "weapon", dmg: 25 },
+};
+
+/** Towar w sklepie Eldrica (id z katalogu ITEMS). */
+export const SHOP_STOCK: string[] = ["potion", "sword", "cloak", "bow"];
+
+export const START_GOLD = 600;
+export const INVENTORY_CAP = 12;
 
 /** Komunikaty klient → serwer. */
 export const MSG = {
@@ -126,6 +142,10 @@ export const MSG = {
   dash: "dash",
   skillshot: "skillshot",
   setClass: "setClass",
+  /** Kup przedmiot (payload: id z ITEMS). */
+  buy: "buy",
+  /** Załóż/zdejmij przedmiot lub użyj mikstury (payload: id z ITEMS). */
+  equipToggle: "equipToggle",
 } as const;
 
 /** Ładunek wejścia ruchu/celowania wysyłany przez klienta. */
