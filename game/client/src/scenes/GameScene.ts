@@ -24,7 +24,9 @@ import { UIScene } from "./UIScene";
 
 interface EntityView {
   container: Phaser.GameObjects.Container;
-  sprite: Phaser.GameObjects.Image;
+  sprite: Phaser.GameObjects.Sprite;
+  /** Prefiks animacji ("player") gdy sprite ma klatkowe animacje idle/walk. */
+  animPrefix?: string;
   hpFill: Phaser.GameObjects.Rectangle;
   hpFullW: number;
   tx: number;
@@ -53,7 +55,8 @@ export class GameScene extends Phaser.Scene {
   private arcane!: Phaser.GameObjects.Graphics;
 
   // NPC / dialog
-  private npcSprite!: Phaser.GameObjects.Image;
+  private npcSprite!: Phaser.GameObjects.Sprite;
+  private npcHasAnim = false;
   private npcBaseScale = 1;
   private npcPhase = Math.random() * Math.PI * 2;
   private npcPrompt!: Phaser.GameObjects.Container;
@@ -77,6 +80,12 @@ export class GameScene extends Phaser.Scene {
     this.load.image("art_boss", "assets/boss.png");
     this.load.image("art_npc", "assets/npc.png");
     this.load.image("art_floor", "assets/floor.png");
+    // Sprite-sheety animacji (4 klatki w poziomym rzędzie).
+    this.load.image("art_player_idle", "assets/player_idle.png");
+    this.load.image("art_player_walk", "assets/player_walk.png");
+    this.load.image("art_npc_idle", "assets/npc_idle.png");
+    // Ikony 5 spelli.
+    for (let i = 1; i <= 5; i++) this.load.image(`art_spell${i}`, `assets/spell${i}.png`);
     this.load.on("loaderror", (file: Phaser.Loader.File) => {
       console.info(`[assets] brak "${file.key}" — fallback do pixel-artu`);
     });
@@ -85,6 +94,11 @@ export class GameScene extends Phaser.Scene {
   async create() {
     this.cameras.main.setBackgroundColor("#26471f");
     this.buildGround();
+
+    // Zarejestruj animacje klatkowe, jeśli sprite-sheety zostały pobrane.
+    this.setupSheetAnim("art_player_idle", "player_idle", 4, 5);
+    this.setupSheetAnim("art_player_walk", "player_walk", 4, 9);
+    this.setupSheetAnim("art_npc_idle", "npc_idle", 4, 4);
 
     this.arcane = this.add.graphics().setDepth(1);
 
@@ -206,7 +220,18 @@ export class GameScene extends Phaser.Scene {
       view.sprite.setFlipX(p.aimX < 0);
       const weapon = view.container.getData("weapon") as Phaser.GameObjects.Triangle;
       weapon.setRotation(Math.atan2(p.aimY, p.aimX) + Math.PI / 2);
-      this.animateBob(view, t, p.dashing);
+      if (view.animPrefix) {
+        // Animacje klatkowe: przełącz idle/walk według faktycznego ruchu.
+        // Próg > ogon interpolacji (lerp nigdy nie domyka się do zera).
+        const moving = Math.hypot(view.tx - view.px, view.ty - view.py) > 1.5;
+        const key =
+          moving && this.anims.exists(`${view.animPrefix}_walk`)
+            ? `${view.animPrefix}_walk`
+            : `${view.animPrefix}_idle`;
+        if (view.sprite.anims.currentAnim?.key !== key) view.sprite.play(key);
+      } else {
+        this.animateBob(view, t, p.dashing);
+      }
       if (id === this.localId && p.hp < view.hpPrev && p.alive) {
         this.cameras.main.flash(120, 120, 0, 0);
       }
@@ -326,10 +351,12 @@ export class GameScene extends Phaser.Scene {
 
   private createPlayerView(p: any): EntityView {
     const baseY = -6;
-    const useArt = this.textures.exists("art_player");
-    const texKey = useArt ? "art_player" : `player_${p.charClass}`;
+    const hasAnims = this.anims.exists("player_idle");
+    const useArt = hasAnims || this.textures.exists("art_player");
+    const texKey = hasAnims ? "art_player_idle" : useArt ? "art_player" : `player_${p.charClass}`;
     const shadow = this.add.ellipse(0, 16, 40, 16, 0x000000, 0.4);
-    const sprite = this.add.image(0, baseY, texKey).setOrigin(0.5, 0.7);
+    const sprite = this.add.sprite(0, baseY, texKey).setOrigin(0.5, 0.7);
+    if (hasAnims) sprite.play("player_idle");
     // Postać ma mieć ~100 px wysokości w świecie (pasuje do skali mapy).
     const effH = useArt ? 100 : 54;
     const baseScale = useArt ? this.fitScaleH(texKey, effH) : 1;
@@ -347,7 +374,9 @@ export class GameScene extends Phaser.Scene {
       .container(p.x, p.y, [shadow, weapon, sprite, hpBg, hpFill, name])
       .setDepth(20);
     container.setData("weapon", weapon);
-    return this.mkView(container, sprite, hpFill, 38, p.x, p.y, p.hp, baseY, baseScale);
+    const view = this.mkView(container, sprite, hpFill, 38, p.x, p.y, p.hp, baseY, baseScale);
+    if (hasAnims) view.animPrefix = "player";
+    return view;
   }
 
   private createEnemyView(e: any): EntityView {
@@ -355,7 +384,7 @@ export class GameScene extends Phaser.Scene {
     const useArt = this.textures.exists("art_boss");
     const texKey = useArt ? "art_boss" : "boss";
     const shadow = this.add.ellipse(0, 30, 84, 30, 0x000000, 0.45);
-    const sprite = this.add.image(0, baseY, texKey).setOrigin(0.5, 0.65);
+    const sprite = this.add.sprite(0, baseY, texKey).setOrigin(0.5, 0.65);
     // Boss wyraźnie góruje nad graczami (~160 px wysokości).
     const effH = useArt ? 160 : 64;
     const baseScale = useArt ? this.fitScaleH(texKey, effH) : 1;
@@ -371,6 +400,33 @@ export class GameScene extends Phaser.Scene {
       .container(e.x, e.y, [shadow, sprite, hpBg, hpFill, label])
       .setDepth(15);
     return this.mkView(container, sprite, hpFill, 96, e.x, e.y, e.hp, baseY, baseScale);
+  }
+
+  /**
+   * Tnie poziomy sprite-sheet na `frames` równych klatek i rejestruje
+   * zapętloną animację `animKey`. Zwraca false, gdy tekstury nie ma.
+   */
+  private setupSheetAnim(texKey: string, animKey: string, frames: number, fps: number): boolean {
+    if (!this.textures.exists(texKey) || this.anims.exists(animKey)) {
+      return this.anims.exists(animKey);
+    }
+    const tex = this.textures.get(texKey);
+    const src = tex.getSourceImage();
+    const fw = Math.floor(src.width / frames);
+    if (fw < 2) return false;
+    const frameNames: string[] = [];
+    for (let i = 0; i < frames; i++) {
+      const name = `f${i}`;
+      tex.add(name, 0, i * fw, 0, fw, src.height);
+      frameNames.push(name);
+    }
+    this.anims.create({
+      key: animKey,
+      frames: frameNames.map((f) => ({ key: texKey, frame: f })),
+      frameRate: fps,
+      repeat: -1,
+    });
+    return true;
   }
 
   private artScaleCache = new Map<string, number>();
@@ -418,7 +474,7 @@ export class GameScene extends Phaser.Scene {
 
   private mkView(
     container: Phaser.GameObjects.Container,
-    sprite: Phaser.GameObjects.Image,
+    sprite: Phaser.GameObjects.Sprite,
     hpFill: Phaser.GameObjects.Rectangle,
     hpFullW: number,
     x: number,
@@ -466,12 +522,15 @@ export class GameScene extends Phaser.Scene {
       .setTint(0xffc46b)
       .setDepth(3);
 
-    const useArt = this.textures.exists("art_npc");
+    this.npcHasAnim = this.anims.exists("npc_idle");
+    const useArt = this.npcHasAnim || this.textures.exists("art_npc");
+    const npcTex = this.npcHasAnim ? "art_npc_idle" : useArt ? "art_npc" : "npc";
     const shadow = this.add.ellipse(0, 16, 40, 16, 0x000000, 0.4);
-    this.npcSprite = this.add.image(0, -6, useArt ? "art_npc" : "npc").setOrigin(0.5, 0.7);
+    this.npcSprite = this.add.sprite(0, -6, npcTex).setOrigin(0.5, 0.7);
+    if (this.npcHasAnim) this.npcSprite.play("npc_idle");
     // Kupiec w skali gracza (~95 px wysokości).
     const effH = useArt ? 95 : 54;
-    this.npcBaseScale = useArt ? this.fitScaleH("art_npc", effH) : 1;
+    this.npcBaseScale = useArt ? this.fitScaleH(npcTex, effH) : 1;
     this.npcSprite.setScale(this.npcBaseScale);
     const top = -6 - effH * 0.7;
     const name = this.add
@@ -528,7 +587,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private animateNpc(time: number) {
-    if (!this.npcSprite) return;
+    if (!this.npcSprite || this.npcHasAnim) return; // sheet animuje się sam
     // Spokojny "oddech" kupca.
     const s = Math.sin(time / 1000 * 3 + this.npcPhase);
     this.npcSprite.scaleY = this.npcBaseScale * (1 + s * 0.03);

@@ -62,7 +62,9 @@ export class CombatRoom extends Room<GameState> {
     // Większy zapas na dołączenie (wolne sieci / urządzenia) niż domyślne 8 s.
     this.setSeatReservationTime(40);
 
-    this.spawnEnemy();
+    // Przeciwnik tymczasowo całkowicie wyłączony (spokojna łąka).
+    // Przywrócenie: odkomentuj poniższą linię.
+    // this.spawnEnemy();
 
     this.onMessage(MSG.input, (client, data: InputMessage) => {
       const rt = this.runtime.get(client.sessionId);

@@ -21,10 +21,14 @@ export class UIScene extends Phaser.Scene {
   private deathText!: Phaser.GameObjects.Text;
   private netError!: Phaser.GameObjects.Text;
 
-  private skillIcon!: Phaser.GameObjects.Image;
-  private dashIcon!: Phaser.GameObjects.Image;
-  private skillKey!: Phaser.GameObjects.Text;
-  private dashKey!: Phaser.GameObjects.Text;
+  /** 5 slotów spelli: ikona (lub null), etykieta klawisza, klucz cooldownu w rejestrze. */
+  private spellSlots: {
+    icon: Phaser.GameObjects.Image | null;
+    placeholder: Phaser.GameObjects.Text | null;
+    key: Phaser.GameObjects.Text;
+    cd: string | null;
+    locked: boolean;
+  }[] = [];
 
   // Panel handlu
   private tradeTitle!: Phaser.GameObjects.Text;
@@ -41,12 +45,32 @@ export class UIScene extends Phaser.Scene {
 
     this.bossName = this.text(0, 0, "", "14px", "#ffd0d6").setOrigin(0.5).setDepth(11);
 
-    this.playerHpText = this.text(0, 0, "", "13px", "#dff5e3").setDepth(11);
+    this.playerHpText = this.text(0, 0, "", "13px", "#eafaf0").setOrigin(0.5).setDepth(12);
 
-    this.skillIcon = this.add.image(0, 0, "icon_skill").setDepth(11);
-    this.dashIcon = this.add.image(0, 0, "icon_dash").setDepth(11);
-    this.skillKey = this.text(0, 0, "LPM", "12px", "#cdd6e6").setOrigin(0.5).setDepth(12);
-    this.dashKey = this.text(0, 0, "SPACJA", "12px", "#cdd6e6").setOrigin(0.5).setDepth(12);
+    // 5 slotów spelli: 1=skill-shot (LPM), 2=unik (SPACJA), 3-5 zablokowane.
+    const slotDefs: { fallback: string | null; key: string; cd: string | null; locked: boolean }[] = [
+      { fallback: "icon_skill", key: "LPM", cd: "cd_skill", locked: false },
+      { fallback: "icon_dash", key: "SPC", cd: "cd_dash", locked: false },
+      { fallback: null, key: "1", cd: null, locked: true },
+      { fallback: null, key: "2", cd: null, locked: true },
+      { fallback: null, key: "3", cd: null, locked: true },
+    ];
+    this.spellSlots = slotDefs.map((def, i) => {
+      const artKey = `art_spell${i + 1}`;
+      let icon: Phaser.GameObjects.Image | null = null;
+      let placeholder: Phaser.GameObjects.Text | null = null;
+      if (this.textures.exists(artKey)) {
+        icon = this.add.image(0, 0, artKey).setDepth(11);
+      } else if (def.fallback) {
+        icon = this.add.image(0, 0, def.fallback).setDepth(11);
+      } else {
+        placeholder = this.text(0, 0, "?", "20px", "#5a6478").setOrigin(0.5).setDepth(11);
+      }
+      const key = this.text(0, 0, def.key, "11px", def.locked ? "#6a7488" : "#cdd6e6")
+        .setOrigin(0.5)
+        .setDepth(12);
+      return { icon, placeholder, key, cd: def.cd, locked: def.locked };
+    });
 
     this.deathText = this.text(0, 0, "POWALONO CIĘ\nodradzanie…", "30px", "#ff6b78")
       .setOrigin(0.5)
@@ -114,31 +138,32 @@ export class UIScene extends Phaser.Scene {
       this.bossName.setVisible(false);
     }
 
-    // ----- Panel HP gracza (lewy dół) -----
+    // ----- Dolny HUD: HP wyśrodkowane, pod nim 5 spelli -----
+    const slot = 56;
+    const gap = 10;
+    const totalW = slot * 5 + gap * 4;
+    const sx = w / 2 - totalW / 2;
+    const sy = h - slot - 22;
+
     const me = room.state.players.get(localId);
     if (me) {
-      const px = 24;
-      const py = h - 70;
-      const pw = 300;
-      this.panel(px - 8, py - 8, pw + 16, 42, 0x0e1420, 0x2f3a52);
-      this.hud.fillStyle(0x232a38, 1).fillRect(px, py, pw, 24);
+      const pw = totalW;
+      const px = w / 2 - pw / 2;
+      const py = sy - 36;
+      this.panel(px - 4, py - 4, pw + 8, 28, 0x0e1420, 0x2f3a52);
+      this.hud.fillStyle(0x232a38, 1).fillRect(px, py, pw, 20);
       const ratio = Phaser.Math.Clamp(me.hp / me.maxHp, 0, 1);
-      this.hud.fillStyle(ratio > 0.3 ? 0x4ad66d : 0xd23a4a, 1).fillRect(px, py, pw * ratio, 24);
-      this.hud.fillStyle(0xffffff, 0.25).fillRect(px, py, pw * ratio, 7);
+      this.hud.fillStyle(ratio > 0.3 ? 0x4ad66d : 0xd23a4a, 1).fillRect(px, py, pw * ratio, 20);
+      this.hud.fillStyle(0xffffff, 0.25).fillRect(px, py, pw * ratio, 6);
       this.playerHpText
-        .setText(`${Math.ceil(me.hp)} / ${me.maxHp}  ·  ${me.charClass}`)
-        .setPosition(px + 10, py + 4);
+        .setText(`${Math.ceil(me.hp)} / ${me.maxHp}`)
+        .setPosition(w / 2, py + 10);
       this.deathText.setPosition(w / 2, h / 2).setVisible(!me.alive);
     }
 
-    // ----- Pasek umiejętności (dół, środek) -----
-    const slot = 52;
-    const gap = 14;
-    const totalW = slot * 2 + gap;
-    const sx = w / 2 - totalW / 2;
-    const sy = h - 76;
-    this.drawSlot(sx, sy, slot, this.skillIcon, this.skillKey, "cd_skill");
-    this.drawSlot(sx + slot + gap, sy, slot, this.dashIcon, this.dashKey, "cd_dash");
+    this.spellSlots.forEach((s, i) => {
+      this.drawSpellSlot(sx + i * (slot + gap), sy, slot, s);
+    });
 
     this.drawTradePanel(w, h);
   }
@@ -166,31 +191,32 @@ export class UIScene extends Phaser.Scene {
     this.tradeFooter.setPosition(px + 14, py + ph - 24);
   }
 
-  private drawSlot(
+  private drawSpellSlot(
     x: number,
     y: number,
     size: number,
-    icon: Phaser.GameObjects.Image,
-    key: Phaser.GameObjects.Text,
-    cdRegistry: string
+    s: (typeof this.spellSlots)[number]
   ) {
-    this.panel(x, y, size, size, 0x0e1420, 0x3a4a66);
-    icon.setPosition(x + size / 2, y + size / 2 - 4);
-    key.setPosition(x + size / 2, y + size - 9);
+    this.panel(x, y, size, size, 0x0e1420, s.locked ? 0x2a3244 : 0x3a4a66);
 
-    const cd = this.registry.get(cdRegistry) as { until: number; dur: number } | undefined;
-    if (cd) {
-      const remaining = cd.until - this.time.now;
-      if (remaining > 0) {
-        const ratio = Phaser.Math.Clamp(remaining / cd.dur, 0, 1);
-        // Ciemna nakładka kurcząca się od góry = pozostały cooldown.
-        this.hud.fillStyle(0x000000, 0.6).fillRect(x + 2, y + 2, size - 4, (size - 4) * ratio);
-        icon.setAlpha(0.4);
-      } else {
-        icon.setAlpha(1);
-      }
-    } else {
-      icon.setAlpha(1);
+    if (s.icon) {
+      s.icon.setPosition(x + size / 2, y + size / 2 - 4);
+      // Ikony z Higgsfield są duże — wpasuj w slot.
+      s.icon.setDisplaySize(size - 12, size - 12);
+      s.icon.setAlpha(s.locked ? 0.35 : 1);
+    }
+    if (s.placeholder) s.placeholder.setPosition(x + size / 2, y + size / 2 - 4);
+    s.key.setPosition(x + size / 2, y + size - 9);
+
+    if (s.locked || !s.cd) return;
+    const cd = this.registry.get(s.cd) as { until: number; dur: number } | undefined;
+    if (!cd) return;
+    const remaining = cd.until - this.time.now;
+    if (remaining > 0) {
+      const ratio = Phaser.Math.Clamp(remaining / cd.dur, 0, 1);
+      // Ciemna nakładka kurcząca się od góry = pozostały cooldown.
+      this.hud.fillStyle(0x000000, 0.6).fillRect(x + 2, y + 2, size - 4, (size - 4) * ratio);
+      s.icon?.setAlpha(0.4);
     }
   }
 
