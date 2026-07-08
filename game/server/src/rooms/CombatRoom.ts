@@ -7,6 +7,7 @@ import {
   SKILLSHOT,
   DASH,
   ENEMY,
+  ENEMY_DAMAGE_ENABLED,
   PLAYER,
   MSG,
   type InputMessage,
@@ -320,6 +321,7 @@ export class CombatRoom extends Room<GameState> {
   }
 
   private resolveAoe(tg: Telegraph) {
+    if (!ENEMY_DAMAGE_ENABLED) return; // tryb treningowy — bez obrażeń
     this.state.players.forEach((p, sid) => {
       if (!p.alive) return;
       const rt = this.runtime.get(sid);

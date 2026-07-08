@@ -48,50 +48,52 @@ function makeTex(
   tex.refresh();
 }
 
-// ----------------------- POSTAĆ GRACZA -----------------------
+// ----------------------- POSTAĆ (człowiek) -----------------------
 
-// Zakapturzony bohater widziany lekko z góry. Kolor kaptura/tuniki = klasa.
-const PLAYER_ROWS = [
-  "....oooo....",
-  "...oTTTTo...",
-  "..oTTTTTTo..",
-  "..oTsSSsTo..",
-  "..oTseesTo..",
-  "..oTsSSsTo..",
-  "..oTTTTTTo..",
-  "..oTTmmTTo..",
-  "..oTtTTtTo..",
-  "..oTTTTTTo..",
-  "..oTTbbTTo..",
-  "...oTttTo...",
-  "...ob..bo...",
-  "...oB..Bo...",
-  "...oo..oo...",
+// Ludzka sylwetka widziana z góry 3/4 (jak w klasycznych MMORPG typu Margonem):
+// włosy, twarz z oczami, tunika w kolorze klasy, ręce, pas, spodnie, buty.
+const HUMAN_ROWS = [
+  "....hhhhhh....",
+  "...hhhhhhhh...",
+  "..hhhhhhhhhh..",
+  "..hhsssssshh..",
+  "..hssessessh..",
+  "..hssssssssh..",
+  "...ssssssss...",
+  "....ssssss....",
+  "..TTTTTTTTTT..",
+  ".TTTTTTTTTTTT.",
+  ".sTTTTTTTTTTs.",
+  ".sTTTbbbbTTTs.",
+  ".sTTTTTTTTTTs.",
+  "..tttttttttt..",
+  "...LLL..LLL...",
+  "...LLL..LLL...",
+  "...bbb..bbb...",
+  "..bbbb..bbbb..",
 ];
 
-function playerPalette(color: number): Palette {
+function humanPalette(tunic: number, hair: number, pants = 0x3a4a5c): Palette {
   return {
-    o: hex(0x15101b),
-    T: hex(color),
-    t: hex(darken(color, 0.7)),
+    h: hex(hair),
     s: hex(0xecc39a),
-    S: hex(0xc98f63),
-    e: hex(0x15101b),
-    m: hex(0xd9d2c0),
+    e: hex(0x2a1c12),
+    T: hex(tunic),
+    t: hex(darken(tunic, 0.7)),
     b: hex(0x4a3526),
-    B: hex(0x2c1f15),
+    L: hex(pants),
   };
 }
 
 export function generatePlayers(scene: Phaser.Scene) {
   for (const id of Object.keys(CLASSES)) {
-    makeTex(scene, `player_${id}`, PLAYER_ROWS, playerPalette(CLASSES[id].color));
+    makeTex(scene, `player_${id}`, HUMAN_ROWS, humanPalette(CLASSES[id].color, 0x5a3a22));
   }
 }
 
-/** NPC kupiec — ta sama sylwetka, złoty płaszcz. */
+/** NPC kupiec — siwy człowiek w złotej tunice i brązowych spodniach. */
 export function generateNpc(scene: Phaser.Scene) {
-  makeTex(scene, "npc", PLAYER_ROWS, playerPalette(0xd8a03c));
+  makeTex(scene, "npc", HUMAN_ROWS, humanPalette(0xd8a03c, 0xd8d8d8, 0x5c4a32));
 }
 
 // ----------------------- BOSS -----------------------
@@ -218,10 +220,12 @@ function rng(seed: number) {
 const TILE_PX = 16;
 export const TILE_SIZE = TILE_PX * PIXEL_SCALE;
 export const FLOOR_TILE_COUNT = 6;
+export const DIRT_TILE_COUNT = 3;
 
-/** Kamienne kafle areny z szumem, pęknięciami i odpryskami. */
+/** Trawiaste kafle łąki z szumem i drobnymi kwiatkami. */
 export function generateFloorTiles(scene: Phaser.Scene) {
-  const base = [0x232a38, 0x202736, 0x252c3c, 0x1e2533];
+  const base = [0x4c8a3f, 0x4a873c, 0x4f8d42, 0x498540];
+  const flowers = [0xf2f2f2, 0xf2d24a, 0xd977b8];
   for (let i = 0; i < FLOOR_TILE_COUNT; i++) {
     const key = `tile_${i}`;
     if (scene.textures.exists(key)) continue;
@@ -232,29 +236,44 @@ export function generateFloorTiles(scene: Phaser.Scene) {
     const b = base[i % base.length];
     ctx.fillStyle = hex(b);
     ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
-    // Odpryski jaśniejsze/ciemniejsze.
-    for (let p = 0; p < 26; p++) {
+    // Źdźbła jaśniejsze/ciemniejsze.
+    for (let p = 0; p < 30; p++) {
       const x = Math.floor(rand() * TILE_PX) * PIXEL_SCALE;
       const y = Math.floor(rand() * TILE_PX) * PIXEL_SCALE;
-      const f = rand() > 0.5 ? 1.18 : 0.82;
+      const f = rand() > 0.5 ? 1.14 : 0.86;
       ctx.fillStyle = hex(darken(b, f));
       ctx.fillRect(x, y, PIXEL_SCALE, PIXEL_SCALE);
     }
-    // Subtelna fuga przy krawędziach.
-    ctx.fillStyle = hex(darken(b, 0.7));
-    ctx.fillRect(0, 0, TILE_SIZE, PIXEL_SCALE);
-    ctx.fillRect(0, 0, PIXEL_SCALE, TILE_SIZE);
-    // Czasem pęknięcie.
-    if (rand() > 0.55) {
-      ctx.fillStyle = hex(darken(b, 0.6));
-      let cx = Math.floor(rand() * TILE_PX);
-      let cy = Math.floor(rand() * TILE_PX);
-      const steps = 4 + Math.floor(rand() * 5);
-      for (let s = 0; s < steps; s++) {
-        ctx.fillRect(cx * PIXEL_SCALE, cy * PIXEL_SCALE, PIXEL_SCALE, PIXEL_SCALE);
-        cx = Phaser.Math.Clamp(cx + (rand() > 0.5 ? 1 : -1), 0, TILE_PX - 1);
-        cy = Phaser.Math.Clamp(cy + 1, 0, TILE_PX - 1);
-      }
+    // Czasem drobny kwiatek.
+    if (rand() > 0.6) {
+      const fx = Math.floor(rand() * (TILE_PX - 2) + 1) * PIXEL_SCALE;
+      const fy = Math.floor(rand() * (TILE_PX - 2) + 1) * PIXEL_SCALE;
+      ctx.fillStyle = hex(flowers[Math.floor(rand() * flowers.length)]);
+      ctx.fillRect(fx, fy, PIXEL_SCALE, PIXEL_SCALE);
+    }
+    tex.refresh();
+  }
+}
+
+/** Kafle ubitej ziemi (ścieżka przez łąkę). */
+export function generateDirtTiles(scene: Phaser.Scene) {
+  const base = [0x8a6a42, 0x87673f, 0x8d6d45];
+  for (let i = 0; i < DIRT_TILE_COUNT; i++) {
+    const key = `dirt_${i}`;
+    if (scene.textures.exists(key)) continue;
+    const tex = scene.textures.createCanvas(key, TILE_SIZE, TILE_SIZE);
+    if (!tex) continue;
+    const ctx = tex.getContext();
+    const rand = rng(4000 + i * 131);
+    const b = base[i % base.length];
+    ctx.fillStyle = hex(b);
+    ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
+    for (let p = 0; p < 24; p++) {
+      const x = Math.floor(rand() * TILE_PX) * PIXEL_SCALE;
+      const y = Math.floor(rand() * TILE_PX) * PIXEL_SCALE;
+      const f = rand() > 0.5 ? 1.12 : 0.86;
+      ctx.fillStyle = hex(darken(b, f));
+      ctx.fillRect(x, y, PIXEL_SCALE, PIXEL_SCALE);
     }
     tex.refresh();
   }
@@ -271,13 +290,55 @@ const ROCK_ROWS = [
   "........",
 ];
 const ROCK_PAL: Palette = {
-  o: hex(0x14181f),
-  g: hex(0x3a4150),
-  G: hex(0x515a6c),
+  o: hex(0x2c4a24),
+  g: hex(0x7a8188),
+  G: hex(0x9aa2ab),
+};
+
+// Drzewo liściaste (korona + pień) — do lasu okalającego łąkę.
+const TREE_ROWS = [
+  ".....gggggg.....",
+  "...gggggggggg...",
+  "..gggggggggggg..",
+  ".gggGGggggggggg.",
+  ".gggggggggGGggg.",
+  "gggGGggggggggggg",
+  "ggggggggGGgggggg",
+  ".ggggGGgggggggg.",
+  ".gggggggggggggg.",
+  "..gggggggggggg..",
+  "...gggggggggg...",
+  ".....gggggg.....",
+  ".......ww.......",
+  ".......ww.......",
+  "......wwww......",
+  "......wwww......",
+];
+const TREE_PAL: Palette = {
+  g: hex(0x2f6b2a),
+  G: hex(0x4c8a3f),
+  w: hex(0x6b4a2c),
+};
+
+// Krzak.
+const BUSH_ROWS = [
+  "..gggggg..",
+  ".gggGGggg.",
+  "gGGggggGGg",
+  "gggggGGggg",
+  ".gggggggg.",
+  "..gggggg..",
+  "...gggg...",
+];
+const BUSH_PAL: Palette = {
+  g: hex(0x3a7a32),
+  G: hex(0x55984a),
 };
 
 export function generateDecor(scene: Phaser.Scene) {
   makeTex(scene, "rock", ROCK_ROWS, ROCK_PAL);
+  makeTex(scene, "tree", TREE_ROWS, TREE_PAL);
+  makeTex(scene, "bush", BUSH_ROWS, BUSH_PAL);
 }
 
 // ----------------------- GLOW / RADIAL -----------------------
@@ -306,5 +367,6 @@ export function generateAllArt(scene: Phaser.Scene) {
   generateProjectile(scene);
   generateUiIcons(scene);
   generateFloorTiles(scene);
+  generateDirtTiles(scene);
   generateDecor(scene);
 }

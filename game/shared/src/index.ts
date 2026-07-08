@@ -57,6 +57,12 @@ export const DASH = {
   cooldown: 1.1,
 } as const;
 
+/**
+ * Tymczasowo: przeciwnicy nie zadają obrażeń (tryb treningowy).
+ * Telegrafy AoE dalej się rysują, żeby ćwiczyć uniki.
+ */
+export const ENEMY_DAMAGE_ENABLED = false;
+
 /** Konfiguracja przeciwnika (boss-lite na potrzeby wycinka). */
 export const ENEMY = {
   maxHp: 600,

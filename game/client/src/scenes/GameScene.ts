@@ -18,6 +18,7 @@ import {
   PIXEL_SCALE,
   TILE_SIZE,
   FLOOR_TILE_COUNT,
+  DIRT_TILE_COUNT,
 } from "../art/pixel";
 import { UIScene } from "./UIScene";
 
@@ -53,6 +54,7 @@ export class GameScene extends Phaser.Scene {
 
   // NPC / dialog
   private npcSprite!: Phaser.GameObjects.Image;
+  private npcBaseScale = 1;
   private npcPhase = Math.random() * Math.PI * 2;
   private npcPrompt!: Phaser.GameObjects.Container;
   private dialogBubble!: Phaser.GameObjects.Container;
@@ -73,6 +75,7 @@ export class GameScene extends Phaser.Scene {
     // Jeśli plików nie ma, loader zgłasza błąd i używamy pixel-artu.
     this.load.image("art_player", "assets/player.png");
     this.load.image("art_boss", "assets/boss.png");
+    this.load.image("art_npc", "assets/npc.png");
     this.load.image("art_floor", "assets/floor.png");
     this.load.on("loaderror", (file: Phaser.Loader.File) => {
       console.info(`[assets] brak "${file.key}" — fallback do pixel-artu`);
@@ -80,16 +83,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   async create() {
-    this.cameras.main.setBackgroundColor("#0c0f17");
+    this.cameras.main.setBackgroundColor("#26471f");
     this.buildGround();
 
     this.arcane = this.add.graphics().setDepth(1);
 
+    // Dzień na łące — tylko delikatne słoneczne podświetlenie wokół gracza.
     this.playerLight = this.add
       .image(0, 0, "glow")
       .setBlendMode(Phaser.BlendModes.ADD)
       .setScale(3.0)
-      .setAlpha(0.28)
+      .setAlpha(0.1)
+      .setTint(0xfff4d6)
       .setDepth(50);
 
     this.makeWeather();
@@ -330,10 +335,11 @@ export class GameScene extends Phaser.Scene {
     // Wskaźnik kierunku tylko dla pixel-artu (malowany sprite ma własną broń).
     const weapon = this.add.triangle(0, -28, 0, 0, -5, 12, 5, 12, 0xf2f2f2).setAlpha(useArt ? 0 : 0.9);
     const name = this.add
-      .text(0, -42, p.name ?? "Gracz", { fontFamily: "monospace", fontSize: "11px", color: "#cdd6e6" })
-      .setOrigin(0.5);
-    const hpBg = this.add.rectangle(0, -34, 38, 5, 0x000000, 0.7);
-    const hpFill = this.add.rectangle(-19, -34, 38, 5, 0x4ad66d).setOrigin(0, 0.5);
+      .text(0, -56, p.name ?? "Gracz", { fontFamily: "monospace", fontSize: "11px", color: "#f5f8ff" })
+      .setOrigin(0.5)
+      .setStroke("#1a2a14", 3);
+    const hpBg = this.add.rectangle(0, -47, 38, 5, 0x000000, 0.7);
+    const hpFill = this.add.rectangle(-19, -47, 38, 5, 0x4ad66d).setOrigin(0, 0.5);
     const container = this.add
       .container(p.x, p.y, [shadow, weapon, sprite, hpBg, hpFill, name])
       .setDepth(20);
@@ -416,11 +422,15 @@ export class GameScene extends Phaser.Scene {
       .setTint(0xffc46b)
       .setDepth(3);
 
+    const useArt = this.textures.exists("art_npc");
     const shadow = this.add.ellipse(0, 16, 34, 14, 0x000000, 0.4);
-    this.npcSprite = this.add.image(0, -6, "npc").setOrigin(0.5, 0.7);
+    this.npcSprite = this.add.image(0, -6, useArt ? "art_npc" : "npc").setOrigin(0.5, 0.7);
+    this.npcBaseScale = useArt ? this.fitScale("art_npc", 46) : 1;
+    this.npcSprite.setScale(this.npcBaseScale);
     const name = this.add
-      .text(0, -42, NPC.name, { fontFamily: "monospace", fontSize: "11px", color: "#ffe2a8" })
-      .setOrigin(0.5);
+      .text(0, -56, NPC.name, { fontFamily: "monospace", fontSize: "11px", color: "#ffe2a8" })
+      .setOrigin(0.5)
+      .setStroke("#1a2a14", 3);
     this.add.container(NPC.x, NPC.y, [shadow, this.npcSprite, name]).setDepth(14);
 
     // Podpowiedź interakcji: [E] Rozmawiaj · [T] Handluj
@@ -436,7 +446,7 @@ export class GameScene extends Phaser.Scene {
       .text(28, 0, "Handluj", { fontFamily: "monospace", fontSize: "12px", color: "#e8ecf4" })
       .setOrigin(0, 0.5);
     this.npcPrompt = this.add
-      .container(NPC.x, NPC.y - 66, [promptBg, capE, labelE, capT, labelT])
+      .container(NPC.x, NPC.y - 84, [promptBg, capE, labelE, capT, labelT])
       .setDepth(40)
       .setVisible(false);
 
@@ -474,8 +484,8 @@ export class GameScene extends Phaser.Scene {
     if (!this.npcSprite) return;
     // Spokojny "oddech" kupca.
     const s = Math.sin(time / 1000 * 3 + this.npcPhase);
-    this.npcSprite.scaleY = 1 + s * 0.03;
-    this.npcSprite.scaleX = 1 - s * 0.015;
+    this.npcSprite.scaleY = this.npcBaseScale * (1 + s * 0.03);
+    this.npcSprite.scaleX = this.npcBaseScale * (1 - s * 0.015);
   }
 
   private updateNpcInteraction(delta: number) {
@@ -606,17 +616,50 @@ export class GameScene extends Phaser.Scene {
       seed = (seed * 1103515245 + 12345) & 0x7fffffff;
       return seed / 0x7fffffff;
     };
+
+    const cx = MAP.width / 2;
+    const cy = MAP.height / 2;
+    // Ścieżka: z dołu mapy do kręgu + odnoga do kupca.
+    const onPath = (x: number, y: number) => {
+      const tx = x + TILE_SIZE / 2;
+      const ty = y + TILE_SIZE / 2;
+      const vertical = Math.abs(tx - cx) < TILE_SIZE * 1.2 && ty > cy;
+      const toNpc =
+        Math.abs(ty - NPC.y) < TILE_SIZE * 1.1 && tx > NPC.x - TILE_SIZE && tx < cx;
+      return vertical || toNpc;
+    };
+    // Skraj mapy — pas lasu.
+    const onEdge = (x: number, y: number) =>
+      x < TILE_SIZE * 2 || x > MAP.width - TILE_SIZE * 3 ||
+      y < TILE_SIZE * 2 || y > MAP.height - TILE_SIZE * 3;
+
     for (let y = 0; y < MAP.height; y += TILE_SIZE) {
       for (let x = 0; x < MAP.width; x += TILE_SIZE) {
-        rt.draw(`tile_${Math.floor(rand() * FLOOR_TILE_COUNT)}`, x, y);
-        if (rand() > 0.93) {
-          rt.draw("rock", x + rand() * (TILE_SIZE - 24), y + rand() * (TILE_SIZE - 24));
+        const path = onPath(x, y);
+        const key = path
+          ? `dirt_${Math.floor(rand() * DIRT_TILE_COUNT)}`
+          : `tile_${Math.floor(rand() * FLOOR_TILE_COUNT)}`;
+        rt.draw(key, x, y);
+
+        const nearCenter = Math.hypot(x - cx, y - cy) < 300;
+        const nearNpc = Math.hypot(x - NPC.x, y - NPC.y) < 110;
+        if (path || nearNpc) continue;
+
+        if (onEdge(x, y)) {
+          // Las okalający łąkę.
+          if (rand() > 0.45) {
+            rt.draw("tree", x + (rand() - 0.5) * 14, y + (rand() - 0.5) * 14);
+          }
+        } else if (!nearCenter) {
+          const roll = rand();
+          if (roll > 0.975) rt.draw("bush", x + rand() * (TILE_SIZE - 30), y + rand() * (TILE_SIZE - 24));
+          else if (roll > 0.958) rt.draw("rock", x + rand() * (TILE_SIZE - 24), y + rand() * (TILE_SIZE - 24));
         }
       }
     }
-    // Obwódka areny.
+    // Obwódka mapy (skraj lasu).
     const border = this.add.graphics().setDepth(-9);
-    border.lineStyle(PIXEL_SCALE * 2, 0x3a4a66, 0.9);
+    border.lineStyle(PIXEL_SCALE * 2, 0x1e3a1a, 0.9);
     border.strokeRect(0, 0, MAP.width, MAP.height);
   }
 
@@ -648,14 +691,14 @@ export class GameScene extends Phaser.Scene {
       .setDepth(70)
       .setTint(0x000000)
       .setAlpha(0.0);
-    // Ciemna ramka dookoła ekranu (efekt klimatycznego oświetlenia).
+    // Delikatna ramka (letni, jasny klimat — tylko lekkie przyciemnienie rogów).
     const dark = this.add.graphics().setScrollFactor(0).setDepth(69);
     const drawDark = () => {
       dark.clear();
       const w = this.scale.width;
       const h = this.scale.height;
-      dark.fillStyle(0x05070d, 0.55);
-      const m = 90;
+      dark.fillStyle(0x0a1408, 0.16);
+      const m = 70;
       dark.fillRect(0, 0, w, m);
       dark.fillRect(0, h - m, w, m);
       dark.fillRect(0, 0, m, h);
@@ -667,16 +710,17 @@ export class GameScene extends Phaser.Scene {
   }
 
   private makeWeather() {
+    // Letni dzień: leniwie dryfujące pyłki/nasiona traw.
     const emitter = this.add.particles(0, 0, "glow", {
       x: { min: 0, max: MAP.width },
-      y: -20,
-      lifespan: 3500,
-      speedY: { min: 220, max: 320 },
-      speedX: { min: -40, max: -15 },
-      scale: { start: 0.05, end: 0.015 },
-      alpha: { start: 0.22, end: 0 },
-      frequency: 35,
-      tint: 0x9fc3ff,
+      y: { min: 0, max: MAP.height },
+      lifespan: 6000,
+      speedY: { min: 8, max: 30 },
+      speedX: { min: -25, max: 25 },
+      scale: { start: 0.035, end: 0.01 },
+      alpha: { start: 0.35, end: 0 },
+      frequency: 90,
+      tint: 0xfff0a8,
     });
     emitter.setDepth(60);
   }
