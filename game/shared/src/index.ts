@@ -6,10 +6,10 @@
  * autorytatywny – te wartości muszą być identyczne po obu stronach.
  */
 
-/** Wymiary mapy (pionowy wycinek – jedna arena). */
+/** Wymiary świata (duża łąka z lasami, ścieżkami i jeziorem). */
 export const MAP = {
-  width: 1600,
-  height: 1200,
+  width: 2400,
+  height: 1800,
 } as const;
 
 /** Częstotliwość symulacji serwera (Hz) oraz patch rate stanu (ms). */

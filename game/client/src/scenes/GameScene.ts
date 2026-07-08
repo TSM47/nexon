@@ -27,6 +27,8 @@ interface EntityView {
   sprite: Phaser.GameObjects.Sprite;
   /** Prefiks animacji ("player") gdy sprite ma klatkowe animacje idle/walk. */
   animPrefix?: string;
+  /** Docelowa widoczna wysokość sprite'a — wyrównywana przy zmianie sheetu. */
+  animTargetH?: number;
   hpFill: Phaser.GameObjects.Rectangle;
   hpFullW: number;
   tx: number;
@@ -228,7 +230,14 @@ export class GameScene extends Phaser.Scene {
           moving && this.anims.exists(`${view.animPrefix}_walk`)
             ? `${view.animPrefix}_walk`
             : `${view.animPrefix}_idle`;
-        if (view.sprite.anims.currentAnim?.key !== key) view.sprite.play(key);
+        if (view.sprite.anims.currentAnim?.key !== key) {
+          view.sprite.play(key);
+          // Sheety idle/walk mają różne kadrowanie — po przełączeniu
+          // wyrównaj widoczną wysokość postaci do wspólnego celu.
+          if (view.animTargetH) {
+            view.sprite.setScale(this.fitScaleH(`art_${key}`, view.animTargetH));
+          }
+        }
       } else {
         this.animateBob(view, t, p.dashing);
       }
@@ -375,7 +384,10 @@ export class GameScene extends Phaser.Scene {
       .setDepth(20);
     container.setData("weapon", weapon);
     const view = this.mkView(container, sprite, hpFill, 38, p.x, p.y, p.hp, baseY, baseScale);
-    if (hasAnims) view.animPrefix = "player";
+    if (hasAnims) {
+      view.animPrefix = "player";
+      view.animTargetH = effH;
+    }
     return view;
   }
 
