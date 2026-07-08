@@ -328,18 +328,21 @@ export class GameScene extends Phaser.Scene {
     const baseY = -6;
     const useArt = this.textures.exists("art_player");
     const texKey = useArt ? "art_player" : `player_${p.charClass}`;
-    const shadow = this.add.ellipse(0, 16, 34, 14, 0x000000, 0.4);
+    const shadow = this.add.ellipse(0, 16, 40, 16, 0x000000, 0.4);
     const sprite = this.add.image(0, baseY, texKey).setOrigin(0.5, 0.7);
-    const baseScale = useArt ? this.fitScale(texKey, 52) : 1;
+    // Postać ma mieć ~100 px wysokości w świecie (pasuje do skali mapy).
+    const effH = useArt ? 100 : 54;
+    const baseScale = useArt ? this.fitScaleH(texKey, effH) : 1;
     sprite.setScale(baseScale);
+    const top = baseY - effH * 0.7;
     // Wskaźnik kierunku tylko dla pixel-artu (malowany sprite ma własną broń).
     const weapon = this.add.triangle(0, -28, 0, 0, -5, 12, 5, 12, 0xf2f2f2).setAlpha(useArt ? 0 : 0.9);
     const name = this.add
-      .text(0, -56, p.name ?? "Gracz", { fontFamily: "monospace", fontSize: "11px", color: "#f5f8ff" })
+      .text(0, top - 12, p.name ?? "Gracz", { fontFamily: "monospace", fontSize: "11px", color: "#f5f8ff" })
       .setOrigin(0.5)
       .setStroke("#1a2a14", 3);
-    const hpBg = this.add.rectangle(0, -47, 38, 5, 0x000000, 0.7);
-    const hpFill = this.add.rectangle(-19, -47, 38, 5, 0x4ad66d).setOrigin(0, 0.5);
+    const hpBg = this.add.rectangle(0, top - 3, 38, 5, 0x000000, 0.7);
+    const hpFill = this.add.rectangle(-19, top - 3, 38, 5, 0x4ad66d).setOrigin(0, 0.5);
     const container = this.add
       .container(p.x, p.y, [shadow, weapon, sprite, hpBg, hpFill, name])
       .setDepth(20);
@@ -351,25 +354,66 @@ export class GameScene extends Phaser.Scene {
     const baseY = -10;
     const useArt = this.textures.exists("art_boss");
     const texKey = useArt ? "art_boss" : "boss";
-    const shadow = this.add.ellipse(0, 30, 76, 28, 0x000000, 0.45);
+    const shadow = this.add.ellipse(0, 30, 84, 30, 0x000000, 0.45);
     const sprite = this.add.image(0, baseY, texKey).setOrigin(0.5, 0.65);
-    const baseScale = useArt ? this.fitScale(texKey, 110) : 1;
+    // Boss wyraźnie góruje nad graczami (~160 px wysokości).
+    const effH = useArt ? 160 : 64;
+    const baseScale = useArt ? this.fitScaleH(texKey, effH) : 1;
     sprite.setScale(baseScale);
-    const hpBg = this.add.rectangle(0, -56, 96, 8, 0x000000, 0.7);
-    const hpFill = this.add.rectangle(-48, -56, 96, 8, 0xd23a4a).setOrigin(0, 0.5);
+    const top = baseY - effH * 0.65;
+    const hpBg = this.add.rectangle(0, top - 6, 96, 8, 0x000000, 0.7);
+    const hpFill = this.add.rectangle(-48, top - 6, 96, 8, 0xd23a4a).setOrigin(0, 0.5);
     const label = this.add
-      .text(0, -70, "Strażnik Aetheru", { fontFamily: "monospace", fontSize: "12px", color: "#ffb3bb" })
-      .setOrigin(0.5);
+      .text(0, top - 20, "Strażnik Aetheru", { fontFamily: "monospace", fontSize: "12px", color: "#ffb3bb" })
+      .setOrigin(0.5)
+      .setStroke("#1a2a14", 3);
     const container = this.add
       .container(e.x, e.y, [shadow, sprite, hpBg, hpFill, label])
       .setDepth(15);
     return this.mkView(container, sprite, hpFill, 96, e.x, e.y, e.hp, baseY, baseScale);
   }
 
-  /** Skala potrzebna, by szerokość tekstury sprowadzić do `targetW` px świata. */
-  private fitScale(key: string, targetW: number): number {
-    const src = this.textures.get(key).getSourceImage();
-    return src.width ? targetW / src.width : 1;
+  private artScaleCache = new Map<string, number>();
+
+  /**
+   * Skala sprowadzająca WIDOCZNĄ (nieprzezroczystą) wysokość tekstury do
+   * `targetH` px świata. Wycięte tło zostawia w kadrze puste marginesy,
+   * więc mierzymy realny obrys po kanale alfa (na próbce 128px).
+   */
+  private fitScaleH(key: string, targetH: number): number {
+    const cacheKey = `${key}@${targetH}`;
+    const cached = this.artScaleCache.get(cacheKey);
+    if (cached) return cached;
+
+    const src = this.textures.get(key).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+    if (!src.height) return 1;
+    let frac = 1;
+    try {
+      const sample = 128;
+      const c = document.createElement("canvas");
+      c.width = sample;
+      c.height = sample;
+      const ctx = c.getContext("2d")!;
+      ctx.drawImage(src, 0, 0, sample, sample);
+      const data = ctx.getImageData(0, 0, sample, sample).data;
+      let top = sample;
+      let bottom = -1;
+      for (let y = 0; y < sample; y++) {
+        for (let x = 0; x < sample; x++) {
+          if (data[(y * sample + x) * 4 + 3] > 16) {
+            if (y < top) top = y;
+            if (y > bottom) bottom = y;
+            break;
+          }
+        }
+      }
+      if (bottom >= top) frac = Math.max(0.05, (bottom - top + 1) / sample);
+    } catch {
+      // np. canvas niedostępny — użyj pełnej wysokości kadru
+    }
+    const scale = targetH / (src.height * frac);
+    this.artScaleCache.set(cacheKey, scale);
+    return scale;
   }
 
   private mkView(
@@ -423,12 +467,15 @@ export class GameScene extends Phaser.Scene {
       .setDepth(3);
 
     const useArt = this.textures.exists("art_npc");
-    const shadow = this.add.ellipse(0, 16, 34, 14, 0x000000, 0.4);
+    const shadow = this.add.ellipse(0, 16, 40, 16, 0x000000, 0.4);
     this.npcSprite = this.add.image(0, -6, useArt ? "art_npc" : "npc").setOrigin(0.5, 0.7);
-    this.npcBaseScale = useArt ? this.fitScale("art_npc", 46) : 1;
+    // Kupiec w skali gracza (~95 px wysokości).
+    const effH = useArt ? 95 : 54;
+    this.npcBaseScale = useArt ? this.fitScaleH("art_npc", effH) : 1;
     this.npcSprite.setScale(this.npcBaseScale);
+    const top = -6 - effH * 0.7;
     const name = this.add
-      .text(0, -56, NPC.name, { fontFamily: "monospace", fontSize: "11px", color: "#ffe2a8" })
+      .text(0, top - 12, NPC.name, { fontFamily: "monospace", fontSize: "11px", color: "#ffe2a8" })
       .setOrigin(0.5)
       .setStroke("#1a2a14", 3);
     this.add.container(NPC.x, NPC.y, [shadow, this.npcSprite, name]).setDepth(14);
@@ -446,7 +493,7 @@ export class GameScene extends Phaser.Scene {
       .text(28, 0, "Handluj", { fontFamily: "monospace", fontSize: "12px", color: "#e8ecf4" })
       .setOrigin(0, 0.5);
     this.npcPrompt = this.add
-      .container(NPC.x, NPC.y - 84, [promptBg, capE, labelE, capT, labelT])
+      .container(NPC.x, NPC.y + top - 34, [promptBg, capE, labelE, capT, labelT])
       .setDepth(40)
       .setVisible(false);
 
@@ -465,7 +512,7 @@ export class GameScene extends Phaser.Scene {
       .text(0, -16, "", { fontFamily: "monospace", fontSize: "10px", color: "#c9a86a" })
       .setOrigin(1, 0);
     this.dialogBubble = this.add
-      .container(NPC.x, NPC.y - 44, [this.dialogBg, this.dialogTextObj, this.dialogHint])
+      .container(NPC.x, NPC.y + top + 6, [this.dialogBg, this.dialogTextObj, this.dialogHint])
       .setDepth(45)
       .setVisible(false);
   }
