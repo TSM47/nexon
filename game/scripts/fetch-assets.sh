@@ -16,11 +16,11 @@ declare -A ASSETS=(
   [npc.png]="$CDN/hf_20260708_225030_638a68cb-5140-4853-b8b7-214bd43f23ae.png"
   # Boss: rycerz-strażnik w karmazynowej zbroi (styl dopasowany do mapy, wycięte tło)
   [boss.png]="$CDN/hf_20260708_225426_977ce859-ceb9-4c1c-a0da-1750a1a2910a.png"
-  # Mapa: słoneczna średniowieczna łąka z kamiennym kręgiem (pixel art, top-down)
-  [floor.png]="$CDN/hf_20260708_224426_1925d66f-8968-407a-88c1-9828a890a84b.png"
+  # Mapa: duży świat — lasy, ścieżki, jezioro, krąg kamienny (pixel art, top-down)
+  [floor.png]="$CDN/hf_20260708_232604_39a421d8-db9d-49af-9fb1-84d7aa1b2d0f.png"
   # Animacje (sheety: 4 klatki w poziomym rzędzie, wycięte tło)
   [player_idle.png]="$CDN/hf_20260708_231938_5c19eb9d-9fec-477a-991e-b3e0cb989cfa.png"
-  [player_walk.png]="$CDN/hf_20260708_231941_9526dd54-08c2-4c01-87fa-23040944d9be.png"
+  [player_walk.png]="$CDN/hf_20260708_233003_9a7e8ac2-c28b-4ecb-88c1-ae91fb380a4e.png"
   [npc_idle.png]="$CDN/hf_20260708_231944_143bb775-1508-4ea4-9dae-af33ee3e62fa.png"
   # Ikony 5 spelli (kwadratowe, z własną ramką)
   [spell1.png]="$CDN/hf_20260708_231351_9d89313a-cd38-46bc-b655-e631c393c100.png"
