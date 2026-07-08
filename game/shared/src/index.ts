@@ -81,6 +81,39 @@ export const PLAYER = {
   radius: 16,
 } as const;
 
+/** NPC — wędrowny kupiec stojący przy południowym skraju areny. */
+export const NPC = {
+  name: "Eldric — Wędrowny Kupiec",
+  x: 420,
+  y: 1000,
+  /** Dystans, w którym pojawia się podpowiedź interakcji. */
+  interactRadius: 95,
+} as const;
+
+/** Kwestie dialogowe kupca (wyświetlane z efektem pisania). */
+export const NPC_DIALOG: string[] = [
+  "Witaj, wędrowcze! Rzadko ktoś zagląda w te ruiny…",
+  "Widzisz ten krąg run? Strażnik Aetheru pilnuje go od wieków. Wielu śmiałków tu poległo.",
+  "Dobra rada: gdy ziemia rozbłyśnie czerwienią — uciekaj albo rób unik. Spacja to twój przyjaciel.",
+  "Zbieraj łupy, a gdy wrócisz z monetami, pohandlujemy. Wciśnij T, by zerknąć na mój towar.",
+];
+
+export type ItemRarity = "common" | "epic" | "legendary";
+
+export interface ShopItem {
+  name: string;
+  rarity: ItemRarity;
+  price: number;
+}
+
+/** Towar kupca (podgląd systemu rzadkości; zakupy wchodzą w M5). */
+export const NPC_STOCK: ShopItem[] = [
+  { name: "Mikstura Życia", rarity: "common", price: 35 },
+  { name: "Miecz Strażnika", rarity: "common", price: 120 },
+  { name: "Płaszcz Cienia", rarity: "epic", price: 950 },
+  { name: "Łuk Pierwszego Świtu", rarity: "legendary", price: 4200 },
+];
+
 /** Komunikaty klient → serwer. */
 export const MSG = {
   input: "input",

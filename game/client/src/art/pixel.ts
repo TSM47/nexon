@@ -89,6 +89,11 @@ export function generatePlayers(scene: Phaser.Scene) {
   }
 }
 
+/** NPC kupiec — ta sama sylwetka, złoty płaszcz. */
+export function generateNpc(scene: Phaser.Scene) {
+  makeTex(scene, "npc", PLAYER_ROWS, playerPalette(0xd8a03c));
+}
+
 // ----------------------- BOSS -----------------------
 
 // Strażnik Aetheru – arkaniczny hełm z rogami i świecącymi oczami.
@@ -296,6 +301,7 @@ export function generateGlow(scene: Phaser.Scene) {
 export function generateAllArt(scene: Phaser.Scene) {
   generateGlow(scene);
   generatePlayers(scene);
+  generateNpc(scene);
   generateBoss(scene);
   generateProjectile(scene);
   generateUiIcons(scene);

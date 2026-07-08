@@ -2,7 +2,7 @@ import Phaser from "phaser";
 import { GameScene } from "./scenes/GameScene";
 import { UIScene } from "./scenes/UIScene";
 
-new Phaser.Game({
+const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: "game",
   width: window.innerWidth,
@@ -16,3 +16,6 @@ new Phaser.Game({
   },
   scene: [GameScene, UIScene],
 });
+
+// Uchwyt do debugowania / testów E2E.
+(window as unknown as { game: Phaser.Game }).game = game;

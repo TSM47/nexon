@@ -1,5 +1,12 @@
 import Phaser from "phaser";
 import type { Room } from "colyseus.js";
+import { NPC, NPC_STOCK, type ItemRarity } from "@aetherfall/shared";
+
+const RARITY_COLORS: Record<ItemRarity, string> = {
+  common: "#c3cbd8",
+  epic: "#b07aff",
+  legendary: "#ffa03c",
+};
 
 /**
  * Warstwa HUD rysowana w przestrzeni ekranu (osobna scena, własna kamera).
@@ -18,6 +25,12 @@ export class UIScene extends Phaser.Scene {
   private dashIcon!: Phaser.GameObjects.Image;
   private skillKey!: Phaser.GameObjects.Text;
   private dashKey!: Phaser.GameObjects.Text;
+
+  // Panel handlu
+  private tradeTitle!: Phaser.GameObjects.Text;
+  private tradeFooter!: Phaser.GameObjects.Text;
+  private tradeNames: Phaser.GameObjects.Text[] = [];
+  private tradePrices: Phaser.GameObjects.Text[] = [];
 
   constructor() {
     super("ui");
@@ -46,6 +59,20 @@ export class UIScene extends Phaser.Scene {
     this.text(16, 70, "WSAD — ruch · mysz — celowanie", "11px", "#7e879b").setDepth(11).setAlpha(0.8);
 
     this.crosshair = this.add.image(0, 0, "crosshair").setDepth(30).setScrollFactor(0);
+
+    // Panel handlu (widoczny gdy registry.tradeOpen).
+    this.tradeTitle = this.text(0, 0, `Handel — ${NPC.name}`, "14px", "#ffe2a8").setDepth(21).setVisible(false);
+    for (const item of NPC_STOCK) {
+      this.tradeNames.push(
+        this.text(0, 0, item.name, "13px", RARITY_COLORS[item.rarity]).setDepth(21).setVisible(false)
+      );
+      this.tradePrices.push(
+        this.text(0, 0, `${item.price} monet`, "13px", "#ffd76b").setOrigin(1, 0).setDepth(21).setVisible(false)
+      );
+    }
+    this.tradeFooter = this.text(0, 0, "Zakupy wkrótce (M5)  ·  T — zamknij", "11px", "#7e879b")
+      .setDepth(21)
+      .setVisible(false);
   }
 
   update() {
@@ -112,6 +139,31 @@ export class UIScene extends Phaser.Scene {
     const sy = h - 76;
     this.drawSlot(sx, sy, slot, this.skillIcon, this.skillKey, "cd_skill");
     this.drawSlot(sx + slot + gap, sy, slot, this.dashIcon, this.dashKey, "cd_dash");
+
+    this.drawTradePanel(w, h);
+  }
+
+  private drawTradePanel(w: number, h: number) {
+    const open = !!this.registry.get("tradeOpen");
+    this.tradeTitle.setVisible(open);
+    this.tradeFooter.setVisible(open);
+    this.tradeNames.forEach((t) => t.setVisible(open));
+    this.tradePrices.forEach((t) => t.setVisible(open));
+    if (!open) return;
+
+    const pw = 360;
+    const ph = 78 + NPC_STOCK.length * 28 + 26;
+    const px = w - pw - 28;
+    const py = h / 2 - ph / 2;
+    this.panel(px, py, pw, ph, 0x0e1420, 0x8a6a3c);
+    this.hud.lineStyle(1, 0x3a4a66, 1).lineBetween(px + 14, py + 40, px + pw - 14, py + 40);
+    this.tradeTitle.setPosition(px + 14, py + 12);
+    NPC_STOCK.forEach((_, i) => {
+      const y = py + 54 + i * 28;
+      this.tradeNames[i].setPosition(px + 14, y);
+      this.tradePrices[i].setPosition(px + pw - 14, y);
+    });
+    this.tradeFooter.setPosition(px + 14, py + ph - 24);
   }
 
   private drawSlot(
