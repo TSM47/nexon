@@ -14,8 +14,8 @@ declare -A ASSETS=(
   [player.png]="$CDN/hf_20260708_225028_26a383f7-5325-41ec-8e47-7cfd53b091d4.png"
   # NPC: stary kupiec w słomkowym kapeluszu (styl dopasowany do mapy, wycięte tło)
   [npc.png]="$CDN/hf_20260708_225030_638a68cb-5140-4853-b8b7-214bd43f23ae.png"
-  # Boss: mroczny rycerz w karmazynowej zbroi (pixel art, wycięte tło)
-  [boss.png]="$CDN/hf_20260708_224536_e052354b-e11f-4e44-9b19-2cdb8f6ce780.png"
+  # Boss: rycerz-strażnik w karmazynowej zbroi (styl dopasowany do mapy, wycięte tło)
+  [boss.png]="$CDN/hf_20260708_225426_977ce859-ceb9-4c1c-a0da-1750a1a2910a.png"
   # Mapa: słoneczna średniowieczna łąka z kamiennym kręgiem (pixel art, top-down)
   [floor.png]="$CDN/hf_20260708_224426_1925d66f-8968-407a-88c1-9828a890a84b.png"
 )
