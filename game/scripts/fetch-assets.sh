@@ -25,8 +25,20 @@ declare -A ASSETS=(
   [item_sword.png]="$CDN/hf_20260708_235637_661e89d6-8d9b-4793-8907-315b3c095017.png"
   [item_cloak.png]="$CDN/hf_20260708_235654_67134719-a71d-481a-8020-7264035cf54d.png"
   [item_bow.png]="$CDN/hf_20260708_235657_b302898c-bf56-4b35-91dd-98ab6fbedc09.png"
+  [item_helm.png]="$CDN/hf_20260709_001124_faf5e246-72ff-423c-bce3-30879f029d60.png"
+  [item_pants.png]="$CDN/hf_20260709_001126_d87bf627-2c5f-4f54-ae58-b5001c900265.png"
+  [item_boots.png]="$CDN/hf_20260709_001135_66cde00b-c8a9-43ae-9577-eb9f65b99131.png"
+  [item_gloves.png]="$CDN/hf_20260709_001138_33023807-4880-41bf-9a64-9516f52e3321.png"
+  [item_shield.png]="$CDN/hf_20260709_001147_4143616f-2f78-47da-bce5-1e09bb59330c.png"
+  [item_arrows.png]="$CDN/hf_20260709_001151_87a19d08-9dd9-43d8-9f5a-33b417a2577d.png"
+  [item_amulet.png]="$CDN/hf_20260709_001200_4394e066-543d-43c0-a4ac-2712d43e08d8.png"
+  [item_rune.png]="$CDN/hf_20260709_001202_2029d95a-ebcd-4f62-9ad7-8c53e7251b0b.png"
   # Portret Eldrica do okna dialogowego
   [npc_portrait.png]="$CDN/hf_20260708_235708_152ad3b9-c31e-463f-b246-10c0a3e5ebce.png"
+  # Tekstury UI: slot, panel okna, ramka paska HP
+  [ui_slot.png]="$CDN/hf_20260709_001214_3e993668-e638-4c7c-a696-c4d4e82eab71.png"
+  [ui_panel.png]="$CDN/hf_20260709_001216_cccd515c-35e5-479a-b32c-2fd43880987f.png"
+  [ui_hpframe.png]="$CDN/hf_20260709_001226_e7e726a5-1cc8-41a8-b86e-345615909fd8.png"
   # Ikony 5 spelli (kwadratowe, z własną ramką)
   [spell1.png]="$CDN/hf_20260708_231351_9d89313a-cd38-46bc-b655-e631c393c100.png"
   [spell2.png]="$CDN/hf_20260708_231400_cd2e8734-b7d5-4a5e-becd-766a781c2e87.png"
