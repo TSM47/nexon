@@ -104,7 +104,7 @@ export class CombatRoom extends Room<GameState> {
         vx: dx * SKILLSHOT.speed,
         vy: dy * SKILLSHOT.speed,
         life: SKILLSHOT.lifetime,
-        dmg: SKILLSHOT.damage + (ITEMS[p.eqWeapon]?.dmg ?? 0),
+        dmg: SKILLSHOT.damage + this.dmgBonus(p),
       });
     });
 
@@ -150,16 +150,28 @@ export class CombatRoom extends Room<GameState> {
         p.inventory.splice(idx, 1);
         return;
       }
-      if (def.slot === "weapon") {
-        p.eqWeapon = p.eqWeapon === def.id ? "" : def.id;
-        return;
+
+      // Już założony? — zdejmij.
+      let equippedAt: string | null = null;
+      p.equipment.forEach((v, k) => {
+        if (v === def.id) equippedAt = k;
+      });
+      if (equippedAt) {
+        p.equipment.delete(equippedAt);
+      } else {
+        // Wybierz slot: naszyjniki i runy mają kilka gniazd (pierwsze wolne).
+        let target: string;
+        if (def.slot === "neck") {
+          target = !p.equipment.get("neck1") ? "neck1" : !p.equipment.get("neck2") ? "neck2" : "neck1";
+        } else if (def.slot === "rune") {
+          target =
+            ["rune1", "rune2", "rune3", "rune4"].find((s) => !p.equipment.get(s)) ?? "rune1";
+        } else {
+          target = def.slot; // helm/chest/pants/boots/gloves/mainhand/offhand
+        }
+        p.equipment.set(target, def.id);
       }
-      // Pancerz wpływa na maks. HP — przelicz i przytnij bieżące HP.
-      p.eqArmor = p.eqArmor === def.id ? "" : def.id;
-      const base = CLASSES[p.charClass]?.maxHp ?? 100;
-      const bonus = p.eqArmor ? ITEMS[p.eqArmor]?.hp ?? 0 : 0;
-      p.maxHp = base + bonus;
-      p.hp = Math.min(p.hp, p.maxHp);
+      this.recalcStats(p);
     });
 
     this.onMessage(MSG.setClass, (client, classId: string) => {
@@ -383,6 +395,26 @@ export class CombatRoom extends Room<GameState> {
   }
 
   // ---- Pomocnicze ----
+
+  /** Przelicz maks. HP z klasy + bonusów założonego ekwipunku. */
+  private recalcStats(p: Player) {
+    const base = CLASSES[p.charClass]?.maxHp ?? 100;
+    let hpBonus = 0;
+    p.equipment.forEach((id) => {
+      hpBonus += ITEMS[id]?.hp ?? 0;
+    });
+    p.maxHp = base + hpBonus;
+    p.hp = Math.min(p.hp, p.maxHp);
+  }
+
+  /** Suma bonusów obrażeń z całego założonego ekwipunku. */
+  private dmgBonus(p: Player): number {
+    let dmg = 0;
+    p.equipment.forEach((id) => {
+      dmg += ITEMS[id]?.dmg ?? 0;
+    });
+    return dmg;
+  }
 
   private removeProjectile(id: string) {
     this.state.projectiles.delete(id);

@@ -58,6 +58,11 @@ export class GameScene extends Phaser.Scene {
   private npcNear = false;
   private dialogLine = -1; // -1 = dialog zamknięty
   private dialogShown = 0; // ile znaków bieżącej kwestii już "napisano"
+  private dialogBubble!: Phaser.GameObjects.Container;
+  private dialogBg!: Phaser.GameObjects.Graphics;
+  private dialogName!: Phaser.GameObjects.Text;
+  private dialogTextObj!: Phaser.GameObjects.Text;
+  private dialogHint!: Phaser.GameObjects.Text;
 
   constructor() {
     super("game");
@@ -79,6 +84,10 @@ export class GameScene extends Phaser.Scene {
     // Ikony przedmiotów sklepu/ekwipunku + portret kupca do okna dialogu.
     for (const id of Object.keys(ITEMS)) this.load.image(`art_item_${id}`, `assets/item_${id}.png`);
     this.load.image("art_npc_portrait", "assets/npc_portrait.png");
+    // Tekstury UI (panel, slot, ramka paska HP).
+    this.load.image("ui_panel", "assets/ui_panel.png");
+    this.load.image("ui_slot", "assets/ui_slot.png");
+    this.load.image("ui_hpframe", "assets/ui_hpframe.png");
     this.load.on("loaderror", (file: Phaser.Loader.File) => {
       console.info(`[assets] brak "${file.key}" — fallback do pixel-artu`);
     });
@@ -377,17 +386,26 @@ export class GameScene extends Phaser.Scene {
     }
     // Wskaźnik kierunku tylko dla pixel-artu (malowany sprite ma własną broń).
     const weapon = this.add.triangle(0, -28, 0, 0, -5, 12, 5, 12, 0xf2f2f2).setAlpha(useArt ? 0 : 0.9);
+    // Plakietka nad głową: imię wyżej, pod nim smukły pasek HP z obwódką.
     const name = this.add
-      .text(0, top - 12, p.name ?? "Gracz", { fontFamily: "monospace", fontSize: "11px", color: "#f5f8ff" })
+      .text(0, top - 26, p.name ?? "Gracz", {
+        fontFamily: "monospace",
+        fontSize: "12px",
+        color: "#ffe9b0",
+        fontStyle: "bold",
+      })
       .setOrigin(0.5)
-      .setStroke("#1a2a14", 3);
-    const hpBg = this.add.rectangle(0, top - 3, 38, 5, 0x000000, 0.7);
-    const hpFill = this.add.rectangle(-19, top - 3, 38, 5, 0x4ad66d).setOrigin(0, 0.5);
+      .setStroke("#141019", 4)
+      .setShadow(0, 2, "#000000", 2, true, true);
+    const hpBg = this.add
+      .rectangle(0, top - 12, 46, 7, 0x10141d, 0.9)
+      .setStrokeStyle(1, 0x39435a, 1);
+    const hpFill = this.add.rectangle(-22, top - 12, 44, 5, 0x4ad66d).setOrigin(0, 0.5);
     const container = this.add
       .container(p.x, p.y, [shadow, weapon, sprite, hpBg, hpFill, name])
       .setDepth(20);
     container.setData("weapon", weapon);
-    const view = this.mkView(container, sprite, hpFill, 38, p.x, p.y, p.hp, baseY, baseScale);
+    const view = this.mkView(container, sprite, hpFill, 44, p.x, p.y, p.hp, baseY, baseScale);
     if (hasAnims) {
       view.animPrefix = "player";
       view.animTargetH = effH;
@@ -672,6 +690,28 @@ export class GameScene extends Phaser.Scene {
       .setDepth(40)
       .setVisible(false);
 
+    // Ozdobny dymek dialogowy nad kupcem (złota ramka + nagłówek z imieniem).
+    this.dialogBg = this.add.graphics();
+    this.dialogName = this.add
+      .text(0, 0, NPC.name, { fontFamily: "monospace", fontSize: "12px", color: "#ffe2a8", fontStyle: "bold" })
+      .setOrigin(0, 0.5);
+    this.dialogTextObj = this.add
+      .text(0, 0, "", {
+        fontFamily: "monospace",
+        fontSize: "13px",
+        color: "#f2ead6",
+        wordWrap: { width: 270 },
+        lineSpacing: 5,
+      })
+      .setOrigin(0, 0);
+    this.dialogHint = this.add
+      .text(0, 0, "", { fontFamily: "monospace", fontSize: "10px", color: "#c9a86a" })
+      .setOrigin(1, 0.5);
+    this.dialogBubble = this.add
+      .container(NPC.x, NPC.y + top - 6, [this.dialogBg, this.dialogName, this.dialogTextObj, this.dialogHint])
+      .setDepth(45)
+      .setVisible(false);
+
   }
 
   /** Rysowany klawisz klawiatury (keycap) z literą. */
@@ -709,18 +749,17 @@ export class GameScene extends Phaser.Scene {
 
     this.npcPrompt.setVisible(near && this.dialogLine < 0 && !this.registry.get("tradeOpen"));
 
-    // Efekt pisania (typewriter) — treść trafia do panelu dialogu w UIScene.
+    // Efekt pisania (typewriter) w dymku nad kupcem.
     if (this.dialogLine >= 0) {
       const full = NPC_DIALOG[this.dialogLine];
       if (this.dialogShown < full.length) {
         this.dialogShown = Math.min(full.length, this.dialogShown + (delta / 1000) * 38);
       }
       const done = this.dialogShown >= full.length;
-      this.registry.set("dialog", {
-        name: NPC.name,
-        text: full.slice(0, Math.floor(this.dialogShown)),
-        hint: done ? (this.dialogLine + 1 < NPC_DIALOG.length ? "E ▸ dalej" : "E ▸ zakończ") : "",
-      });
+      this.dialogTextObj.setText(full.slice(0, Math.floor(this.dialogShown)));
+      this.dialogHint.setText(
+        done ? (this.dialogLine + 1 < NPC_DIALOG.length ? "E ▸ dalej" : "E ▸ zakończ") : ""
+      );
     }
   }
 
@@ -751,12 +790,53 @@ export class GameScene extends Phaser.Scene {
   private startDialogLine(index: number) {
     this.dialogLine = index;
     this.dialogShown = 0;
+
+    // Zmierz pełną kwestię, by dymek nie zmieniał rozmiaru podczas pisania.
+    const full = NPC_DIALOG[index];
+    this.dialogTextObj.setText(full);
+    const tw = Math.max(this.dialogTextObj.width, this.dialogName.width + 60);
+    const th = this.dialogTextObj.height;
+    this.dialogTextObj.setText("");
+
+    const padX = 16;
+    const headH = 26;
+    const w = tw + padX * 2;
+    const h = headH + th + 24;
+
+    const g = this.dialogBg;
+    g.clear();
+    // Cień pod dymkiem.
+    g.fillStyle(0x000000, 0.35);
+    g.fillRoundedRect(-w / 2 + 3, -h - 14 + 4, w, h, 10);
+    // Korpus + złota ramka podwójna.
+    g.fillStyle(0x0b0f18, 0.96);
+    g.fillRoundedRect(-w / 2, -h - 14, w, h, 10);
+    g.lineStyle(2, 0x8a6a3c, 1);
+    g.strokeRoundedRect(-w / 2, -h - 14, w, h, 10);
+    g.lineStyle(1, 0x54452a, 1);
+    g.strokeRoundedRect(-w / 2 + 4, -h - 10, w - 8, h - 8, 7);
+    // Pasek nagłówka.
+    g.fillStyle(0x1a1626, 0.9);
+    g.fillRoundedRect(-w / 2 + 4, -h - 10, w - 8, headH - 6, { tl: 7, tr: 7, bl: 0, br: 0 });
+    g.lineStyle(1, 0x54452a, 1);
+    g.lineBetween(-w / 2 + 6, -h - 14 + headH, w / 2 - 6, -h - 14 + headH);
+    // Dzióbek wskazujący kupca.
+    g.fillStyle(0x0b0f18, 0.96);
+    g.fillTriangle(-9, -15, 9, -15, 0, -2);
+    g.lineStyle(2, 0x8a6a3c, 1);
+    g.lineBetween(-9, -14, 0, -2);
+    g.lineBetween(9, -14, 0, -2);
+
+    this.dialogName.setPosition(-w / 2 + padX, -h - 14 + headH / 2 - 2);
+    this.dialogTextObj.setPosition(-w / 2 + padX, -h - 14 + headH + 6);
+    this.dialogHint.setPosition(w / 2 - 10, -22);
+    this.dialogBubble.setVisible(true);
   }
 
   private closeDialog() {
     this.dialogLine = -1;
     this.dialogShown = 0;
-    this.registry.set("dialog", null);
+    if (this.dialogBubble) this.dialogBubble.setVisible(false);
   }
 
   // ---------- Efekty ----------

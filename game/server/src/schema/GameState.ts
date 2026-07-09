@@ -7,9 +7,8 @@ export class Player extends Schema {
   @type("number") gold = 0;
   /** Posiadane przedmioty (id z katalogu ITEMS). */
   @type(["string"]) inventory = new ArraySchema<string>();
-  /** Założona broń / pancerz ("" = brak). */
-  @type("string") eqWeapon = "";
-  @type("string") eqArmor = "";
+  /** Założony ekwipunek: slot (helm/chest/.../rune4) → id przedmiotu. */
+  @type({ map: "string" }) equipment = new MapSchema<string>();
   @type("number") x = 0;
   @type("number") y = 0;
   /** Kierunek celowania – do orientacji sylwetki po stronie klienta. */

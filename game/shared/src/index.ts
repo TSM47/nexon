@@ -106,7 +106,36 @@ export const NPC_DIALOG: string[] = [
 
 export type ItemRarity = "common" | "epic" | "legendary";
 
-export type ItemSlot = "weapon" | "armor" | "potion";
+/** Typ przedmiotu — do którego rodzaju slotu pasuje. */
+export type ItemSlot =
+  | "helm"
+  | "chest"
+  | "pants"
+  | "boots"
+  | "gloves"
+  | "neck"
+  | "mainhand"
+  | "offhand"
+  | "rune"
+  | "potion";
+
+/** Konkretne sloty założonego ekwipunku na postaci. */
+export const EQUIP_SLOTS = [
+  "helm",
+  "chest",
+  "pants",
+  "boots",
+  "gloves",
+  "neck1",
+  "neck2",
+  "mainhand",
+  "offhand",
+  "rune1",
+  "rune2",
+  "rune3",
+  "rune4",
+] as const;
+export type EquipSlotId = (typeof EQUIP_SLOTS)[number];
 
 export interface ItemDef {
   id: string;
@@ -114,9 +143,9 @@ export interface ItemDef {
   rarity: ItemRarity;
   price: number;
   slot: ItemSlot;
-  /** Bonus obrażeń skill-shota (broń). */
+  /** Bonus obrażeń skill-shota. */
   dmg?: number;
-  /** Bonus maks. HP (pancerz). */
+  /** Bonus maks. HP. */
   hp?: number;
   /** Ilość leczenia (mikstura, jednorazowa). */
   heal?: number;
@@ -125,16 +154,37 @@ export interface ItemDef {
 /** Katalog przedmiotów (jedno źródło prawdy dla serwera i klienta). */
 export const ITEMS: Record<string, ItemDef> = {
   potion: { id: "potion", name: "Mikstura Życia", rarity: "common", price: 35, slot: "potion", heal: 60 },
-  sword: { id: "sword", name: "Miecz Strażnika", rarity: "common", price: 120, slot: "weapon", dmg: 8 },
-  cloak: { id: "cloak", name: "Płaszcz Cienia", rarity: "epic", price: 950, slot: "armor", hp: 40 },
-  bow: { id: "bow", name: "Łuk Pierwszego Świtu", rarity: "legendary", price: 4200, slot: "weapon", dmg: 25 },
+  sword: { id: "sword", name: "Miecz Strażnika", rarity: "common", price: 120, slot: "mainhand", dmg: 8 },
+  bow: { id: "bow", name: "Łuk Pierwszego Świtu", rarity: "legendary", price: 4200, slot: "mainhand", dmg: 25 },
+  cloak: { id: "cloak", name: "Płaszcz Cienia", rarity: "epic", price: 950, slot: "chest", hp: 40 },
+  helm: { id: "helm", name: "Hełm Strażnika", rarity: "common", price: 90, slot: "helm", hp: 15 },
+  pants: { id: "pants", name: "Nogawice Podróżnika", rarity: "common", price: 85, slot: "pants", hp: 12 },
+  boots: { id: "boots", name: "Buty Zwiadowcy", rarity: "common", price: 70, slot: "boots", hp: 10 },
+  gloves: { id: "gloves", name: "Rękawice Łucznika", rarity: "common", price: 80, slot: "gloves", dmg: 3 },
+  shield: { id: "shield", name: "Tarcza Dębowa", rarity: "common", price: 200, slot: "offhand", hp: 25 },
+  arrows: { id: "arrows", name: "Kołczan Celności", rarity: "epic", price: 450, slot: "offhand", dmg: 6 },
+  amulet: { id: "amulet", name: "Amulet Życia", rarity: "epic", price: 300, slot: "neck", hp: 20 },
+  rune: { id: "rune", name: "Runa Mocy", rarity: "epic", price: 250, slot: "rune", dmg: 4 },
 };
 
 /** Towar w sklepie Eldrica (id z katalogu ITEMS). */
-export const SHOP_STOCK: string[] = ["potion", "sword", "cloak", "bow"];
+export const SHOP_STOCK: string[] = [
+  "potion",
+  "sword",
+  "helm",
+  "pants",
+  "boots",
+  "gloves",
+  "shield",
+  "amulet",
+  "rune",
+  "arrows",
+  "cloak",
+  "bow",
+];
 
 export const START_GOLD = 600;
-export const INVENTORY_CAP = 12;
+export const INVENTORY_CAP = 24;
 
 /** Komunikaty klient → serwer. */
 export const MSG = {
