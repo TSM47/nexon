@@ -11,6 +11,7 @@ import {
   NPC,
   NPC_DIALOG,
   ITEMS,
+  MANA,
   type InputMessage,
 } from "@aetherfall/shared";
 import { connect } from "../net/network";
@@ -84,10 +85,13 @@ export class GameScene extends Phaser.Scene {
     // Ikony przedmiotów sklepu/ekwipunku + portret kupca do okna dialogu.
     for (const id of Object.keys(ITEMS)) this.load.image(`art_item_${id}`, `assets/item_${id}.png`);
     this.load.image("art_npc_portrait", "assets/npc_portrait.png");
-    // Tekstury UI (panel, slot, ramka paska HP).
+    // Tekstury UI (panel, slot, ramka paska HP, monety, plakietka poziomu).
     this.load.image("ui_panel", "assets/ui_panel.png");
     this.load.image("ui_slot", "assets/ui_slot.png");
     this.load.image("ui_hpframe", "assets/ui_hpframe.png");
+    this.load.image("ui_coin", "assets/ui_coin.png");
+    this.load.image("ui_gem", "assets/ui_gem.png");
+    this.load.image("ui_levelbadge", "assets/ui_levelbadge.png");
     this.load.on("loaderror", (file: Phaser.Loader.File) => {
       console.info(`[assets] brak "${file.key}" — fallback do pixel-artu`);
     });
@@ -163,6 +167,12 @@ export class GameScene extends Phaser.Scene {
       if (!this.room || !pointer.leftButtonDown()) return;
       // Klik obsługuje UI, gdy otwarty jest sklep lub ekwipunek.
       if (this.registry.get("tradeOpen") || this.registry.get("invOpen")) return;
+      // Bez many nie strzelamy — mignij paskiem many.
+      const me = this.room.state.players.get(this.localId);
+      if (me && me.mp < MANA.skillshotCost) {
+        this.registry.set("manaFlash", this.time.now + 300);
+        return;
+      }
       const aim = this.aimVector();
       if (!aim) return;
       this.room.send(MSG.skillshot, { ax: aim.x, ay: aim.y });

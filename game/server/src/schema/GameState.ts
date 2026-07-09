@@ -5,6 +5,13 @@ export class Player extends Schema {
   @type("string") name = "";
   @type("string") charClass = "ranger";
   @type("number") gold = 0;
+  /** Smocze Monety (waluta premium). */
+  @type("number") gems = 0;
+  @type("number") level = 1;
+  @type("number") xp = 0;
+  @type("number") xpMax = 100;
+  @type("number") mp = 0;
+  @type("number") maxMp = 0;
   /** Posiadane przedmioty (id z katalogu ITEMS). */
   @type(["string"]) inventory = new ArraySchema<string>();
   /** Założony ekwipunek: slot (helm/chest/.../rune4) → id przedmiotu. */

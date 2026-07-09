@@ -68,11 +68,18 @@ export class UIScene extends Phaser.Scene {
 
   private bossName!: Phaser.GameObjects.Text;
   private playerHpText!: Phaser.GameObjects.Text;
+  private playerMpText!: Phaser.GameObjects.Text;
   private goldText!: Phaser.GameObjects.Text;
+  private gemsText!: Phaser.GameObjects.Text;
+  private levelText!: Phaser.GameObjects.Text;
+  private xpText!: Phaser.GameObjects.Text;
   private deathText!: Phaser.GameObjects.Text;
   private netError!: Phaser.GameObjects.Text;
 
   private hpFrame: Phaser.GameObjects.Image | null = null;
+  private levelBadge: Phaser.GameObjects.Image | null = null;
+  private coinIcon: Phaser.GameObjects.Image | null = null;
+  private gemIcon: Phaser.GameObjects.Image | null = null;
 
   private spellSlots: {
     frame: Phaser.GameObjects.Image | null;
@@ -120,11 +127,24 @@ export class UIScene extends Phaser.Scene {
     this.hud = this.add.graphics().setDepth(10);
 
     this.bossName = this.text(0, 0, "", "14px", "#ffd0d6").setOrigin(0.5).setDepth(11);
-    this.playerHpText = this.text(0, 0, "", "13px", "#eafaf0").setOrigin(0.5).setDepth(13);
-    this.goldText = this.text(0, 0, "", "13px", "#ffd76b").setOrigin(0, 0.5).setDepth(13);
+    this.playerHpText = this.text(0, 0, "", "12px", "#eafaf0").setOrigin(0.5).setDepth(13);
+    this.playerMpText = this.text(0, 0, "", "9px", "#cfe4ff").setOrigin(0.5).setDepth(13);
+    this.goldText = this.text(0, 0, "", "12px", "#ffd76b").setOrigin(0, 0.5).setDepth(13);
+    this.gemsText = this.text(0, 0, "", "12px", "#7fd4ff").setOrigin(0, 0.5).setDepth(13);
+    this.levelText = this.text(0, 0, "1", "16px", "#ffe9b0").setOrigin(0.5).setDepth(13);
+    this.xpText = this.text(0, 0, "", "10px", "#d9b96a").setOrigin(1, 1).setDepth(13);
 
     if (this.textures.exists("ui_hpframe")) {
-      this.hpFrame = this.add.image(0, 0, "ui_hpframe").setDepth(12);
+      this.hpFrame = this.add.image(0, 0, "ui_hpframe").setDepth(12).setVisible(false);
+    }
+    if (this.textures.exists("ui_levelbadge")) {
+      this.levelBadge = this.add.image(0, 0, "ui_levelbadge").setDepth(12).setVisible(false);
+    }
+    if (this.textures.exists("ui_coin")) {
+      this.coinIcon = this.add.image(0, 0, "ui_coin").setDepth(13).setVisible(false);
+    }
+    if (this.textures.exists("ui_gem")) {
+      this.gemIcon = this.add.image(0, 0, "ui_gem").setDepth(13).setVisible(false);
     }
 
     this.createSpellSlots();
@@ -334,37 +354,96 @@ export class UIScene extends Phaser.Scene {
   }
 
   private drawBottomHud(me: any, w: number, h: number) {
-    const slot = 58;
-    const gap = 12;
+    const slot = 56;
+    const gap = 10;
     const totalW = slot * 5 + gap * 4;
     const sx = w / 2 - totalW / 2;
-    const sy = h - slot - 20;
+    // Nad slotami: pasek MP, nad nim HP; na samym dole ekranu pasek XP.
+    const xpH = 10;
+    const sy = h - slot - xpH - 14;
 
     if (me) {
-      const pw = totalW - 8;
-      const px = w / 2 - pw / 2;
-      const py = sy - 40;
-      const bh = 24;
+      const px = sx;
+      const pw = totalW;
+      const hpY = sy - 44;
+      const hpH = 18;
+      const mpY = sy - 22;
+      const mpH = 11;
+
+      // --- HP (z ozdobną ramką, jeśli jest) ---
+      const hpRatio = Phaser.Math.Clamp(me.hp / me.maxHp, 0, 1);
       if (this.hpFrame) {
-        // Ozdobna ramka z Higgsfield + wypełnienie w jej wnętrzu.
-        this.hpFrame.setVisible(true).setPosition(w / 2, py + bh / 2).setDisplaySize(pw + 26, bh + 18);
-        const inX = px + 6;
-        const inW = pw - 12;
-        const ratio = Phaser.Math.Clamp(me.hp / me.maxHp, 0, 1);
-        this.hud.fillStyle(0x1a2130, 0.9).fillRect(inX, py + 4, inW, bh - 8);
+        this.hpFrame.setVisible(true).setPosition(w / 2, hpY + hpH / 2).setDisplaySize(pw + 24, hpH + 16);
+        this.hud.fillStyle(0x1a1410, 0.92).fillRect(px + 4, hpY + 2, pw - 8, hpH - 4);
         this.hud
-          .fillStyle(ratio > 0.3 ? 0x46c96a : 0xd23a4a, 1)
-          .fillRect(inX, py + 4, inW * ratio, bh - 8);
-        this.hud.fillStyle(0xffffff, 0.22).fillRect(inX, py + 4, inW * ratio, 5);
+          .fillStyle(hpRatio > 0.3 ? 0x46c96a : 0xd23a4a, 1)
+          .fillRect(px + 4, hpY + 2, (pw - 8) * hpRatio, hpH - 4);
+        this.hud.fillStyle(0xffffff, 0.2).fillRect(px + 4, hpY + 2, (pw - 8) * hpRatio, 4);
       } else {
-        this.panel(px - 4, py - 4, pw + 8, bh + 8, 0x0e1420, 0x2f3a52);
-        this.hud.fillStyle(0x232a38, 1).fillRect(px, py, pw, bh);
-        const ratio = Phaser.Math.Clamp(me.hp / me.maxHp, 0, 1);
-        this.hud.fillStyle(ratio > 0.3 ? 0x46c96a : 0xd23a4a, 1).fillRect(px, py, pw * ratio, bh);
-        this.hud.fillStyle(0xffffff, 0.22).fillRect(px, py, pw * ratio, 6);
+        this.panel(px - 3, hpY - 3, pw + 6, hpH + 6, 0x14100c, 0x6a5334);
+        this.hud.fillStyle(0x241c14, 1).fillRect(px, hpY, pw, hpH);
+        this.hud.fillStyle(hpRatio > 0.3 ? 0x46c96a : 0xd23a4a, 1).fillRect(px, hpY, pw * hpRatio, hpH);
+        this.hud.fillStyle(0xffffff, 0.2).fillRect(px, hpY, pw * hpRatio, 5);
       }
-      this.playerHpText.setText(`${Math.ceil(me.hp)} / ${me.maxHp}`).setPosition(w / 2, py + bh / 2);
-      this.goldText.setText(`● ${me.gold} zł`).setPosition(px + pw + 26, py + bh / 2);
+      this.playerHpText.setText(`${Math.ceil(me.hp)} / ${me.maxHp}`).setPosition(w / 2, hpY + hpH / 2);
+
+      // --- Mana (niebieski, cieńszy; miga na czerwono przy braku) ---
+      const mpRatio = Phaser.Math.Clamp(me.mp / me.maxMp, 0, 1);
+      const manaFlash = this.time.now < ((this.registry.get("manaFlash") as number) ?? 0);
+      this.panel(px - 3, mpY - 3, pw + 6, mpH + 6, 0x0c1014, manaFlash ? 0xd23a4a : 0x33506a);
+      this.hud.fillStyle(0x141c26, 1).fillRect(px, mpY, pw, mpH);
+      this.hud.fillStyle(0x3f8fe0, 1).fillRect(px, mpY, pw * mpRatio, mpH);
+      this.hud.fillStyle(0xffffff, 0.22).fillRect(px, mpY, pw * mpRatio, 3);
+      this.playerMpText
+        .setText(`${Math.floor(me.mp)} / ${me.maxMp}`)
+        .setPosition(w / 2, mpY + mpH / 2 + 1);
+
+      // --- Plakietka poziomu po lewej ---
+      const bx = px - 44;
+      const by = sy - 26;
+      if (this.levelBadge) {
+        this.levelBadge.setVisible(true).setPosition(bx, by).setDisplaySize(56, 56);
+      } else {
+        this.hud.fillStyle(0x14100c, 0.95).fillCircle(bx, by, 24);
+        this.hud.lineStyle(3, 0x8a6a3c, 1).strokeCircle(bx, by, 24);
+        this.hud.lineStyle(1, 0x54452a, 1).strokeCircle(bx, by, 19);
+      }
+      this.levelText.setText(String(me.level)).setPosition(bx, by);
+
+      // --- Panel walut po prawej: złoto + Smocze Monety ---
+      const cx = px + pw + 14;
+      const cw = 118;
+      this.panel(cx, sy - 46, cw, 44, 0x14100c, 0x6a5334);
+      if (this.coinIcon) {
+        this.coinIcon.setVisible(true).setPosition(cx + 14, sy - 35).setDisplaySize(18, 18);
+      } else {
+        this.hud.fillStyle(0xffd76b, 1).fillCircle(cx + 14, sy - 35, 7);
+        this.hud.lineStyle(1, 0x8a6a3c, 1).strokeCircle(cx + 14, sy - 35, 7);
+      }
+      this.goldText.setText(String(me.gold)).setPosition(cx + 28, sy - 35);
+      if (this.gemIcon) {
+        this.gemIcon.setVisible(true).setPosition(cx + 14, sy - 13).setDisplaySize(18, 18);
+      } else {
+        this.hud.fillStyle(0x7fd4ff, 1).fillTriangle(cx + 14, sy - 20, cx + 7, sy - 11, cx + 21, sy - 11);
+        this.hud.fillStyle(0x4fa8e0, 1).fillTriangle(cx + 14, sy - 4, cx + 7, sy - 11, cx + 21, sy - 11);
+      }
+      this.gemsText.setText(String(me.gems)).setPosition(cx + 28, sy - 13);
+
+      // --- Pasek XP na samym dole ekranu ---
+      const xpRatio = Phaser.Math.Clamp(me.xp / me.xpMax, 0, 1);
+      this.hud.fillStyle(0x0e0b08, 1).fillRect(0, h - xpH, w, xpH);
+      this.hud.fillStyle(0xd9a441, 1).fillRect(0, h - xpH, w * xpRatio, xpH);
+      this.hud.fillStyle(0xffe9b0, 0.35).fillRect(0, h - xpH, w * xpRatio, 3);
+      this.hud.lineStyle(1, 0x54452a, 1).lineBetween(0, h - xpH, w, h - xpH);
+      // Znaczniki co 10%.
+      this.hud.lineStyle(1, 0x000000, 0.4);
+      for (let i = 1; i < 10; i++) {
+        this.hud.lineBetween((w / 10) * i, h - xpH, (w / 10) * i, h);
+      }
+      this.xpText
+        .setText(`poziom ${me.level}  ·  ${Math.floor(me.xp)}/${me.xpMax} XP`)
+        .setPosition(w - 10, h - xpH - 2);
+
       this.deathText.setPosition(w / 2, h / 2).setVisible(!me.alive);
     }
 

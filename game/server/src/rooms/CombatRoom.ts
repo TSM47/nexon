@@ -10,7 +10,10 @@ import {
   ENEMY_DAMAGE_ENABLED,
   ITEMS,
   START_GOLD,
+  START_GEMS,
   INVENTORY_CAP,
+  MANA,
+  XP,
   PLAYER,
   MSG,
   type InputMessage,
@@ -89,8 +92,11 @@ export class CombatRoom extends Room<GameState> {
       const rt = this.runtime.get(client.sessionId);
       const p = this.state.players.get(client.sessionId);
       if (!rt || !p || !p.alive || rt.skillCd > 0) return;
+      if (p.mp < MANA.skillshotCost) return;
       const l = len(data.ax, data.ay);
       if (l < 0.001) return;
+      p.mp -= MANA.skillshotCost;
+      this.addXp(p, XP.perShot);
       rt.skillCd = SKILLSHOT.cooldown;
       const dx = data.ax / l;
       const dy = data.ay / l;
@@ -194,7 +200,11 @@ export class CombatRoom extends Room<GameState> {
     p.charClass = def.id;
     p.maxHp = def.maxHp;
     p.hp = def.maxHp;
+    p.maxMp = def.maxMp;
+    p.mp = def.maxMp;
     p.gold = START_GOLD;
+    p.gems = START_GEMS;
+    p.xpMax = XP.base;
     const spawn = this.spawnPoint();
     p.x = spawn.x;
     p.y = spawn.y;
@@ -226,6 +236,9 @@ export class CombatRoom extends Room<GameState> {
 
       rt.skillCd = Math.max(0, rt.skillCd - dt);
       rt.dashCd = Math.max(0, rt.dashCd - dt);
+
+      // Pasywna regeneracja many.
+      if (p.mp < p.maxMp) p.mp = Math.min(p.maxMp, p.mp + MANA.regenPerSec * dt);
 
       if (!p.alive) {
         rt.respawnTimer -= dt;
@@ -395,6 +408,18 @@ export class CombatRoom extends Room<GameState> {
   }
 
   // ---- Pomocnicze ----
+
+  /** Dodaj XP; przy przekroczeniu progu awansuj poziom (pełne leczenie). */
+  private addXp(p: Player, amount: number) {
+    p.xp += amount;
+    while (p.xp >= p.xpMax) {
+      p.xp -= p.xpMax;
+      p.level += 1;
+      p.xpMax = Math.round(p.xpMax * XP.growth);
+      p.hp = p.maxHp;
+      p.mp = p.maxMp;
+    }
+  }
 
   /** Przelicz maks. HP z klasy + bonusów założonego ekwipunku. */
   private recalcStats(p: Player) {

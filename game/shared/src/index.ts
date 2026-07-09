@@ -27,14 +27,31 @@ export interface ClassDef {
   /** Kolor bazowy sylwetki (do prostego pixel-artu / tintu). */
   color: number;
   maxHp: number;
+  maxMp: number;
   moveSpeed: number;
 }
 
 export const CLASSES: Record<string, ClassDef> = {
-  warrior: { id: "warrior", name: "Wojownik", color: 0xc0552d, maxHp: 140, moveSpeed: 205 },
-  mage: { id: "mage", name: "Mag", color: 0x3f6fd1, maxHp: 90, moveSpeed: 215 },
-  ranger: { id: "ranger", name: "Łowca", color: 0x3aa05a, maxHp: 110, moveSpeed: 230 },
+  warrior: { id: "warrior", name: "Wojownik", color: 0xc0552d, maxHp: 140, maxMp: 60, moveSpeed: 205 },
+  mage: { id: "mage", name: "Mag", color: 0x3f6fd1, maxHp: 90, maxMp: 140, moveSpeed: 215 },
+  ranger: { id: "ranger", name: "Łowca", color: 0x3aa05a, maxHp: 110, maxMp: 90, moveSpeed: 230 },
 };
+
+/** Mana: koszt skill-shota i pasywna regeneracja. */
+export const MANA = {
+  skillshotCost: 12,
+  regenPerSec: 6,
+} as const;
+
+/** Doświadczenie: baza progu, wzrost progu i XP za strzał (trening). */
+export const XP = {
+  base: 100,
+  growth: 1.25,
+  perShot: 2,
+} as const;
+
+/** Waluta premium — Smocze Monety. */
+export const START_GEMS = 5;
 
 export const DEFAULT_CLASS = "ranger";
 
