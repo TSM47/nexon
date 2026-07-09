@@ -35,10 +35,14 @@ declare -A ASSETS=(
   [item_rune.png]="$CDN/hf_20260709_001202_2029d95a-ebcd-4f62-9ad7-8c53e7251b0b.png"
   # Portret Eldrica do okna dialogowego
   [npc_portrait.png]="$CDN/hf_20260708_235708_152ad3b9-c31e-463f-b246-10c0a3e5ebce.png"
-  # Tekstury UI: slot, panel okna, ramka paska HP
-  [ui_slot.png]="$CDN/hf_20260709_001214_3e993668-e638-4c7c-a696-c4d4e82eab71.png"
-  [ui_panel.png]="$CDN/hf_20260709_001216_cccd515c-35e5-479a-b32c-2fd43880987f.png"
-  [ui_hpframe.png]="$CDN/hf_20260709_001226_e7e726a5-1cc8-41a8-b86e-345615909fd8.png"
+  # Tekstury UI (rustykalne średniowieczne: dąb, kute żelazo, skóra)
+  [ui_slot.png]="$CDN/hf_20260709_002840_4e31d458-b90e-4b26-a4e5-8fb887571990.png"
+  [ui_panel.png]="$CDN/hf_20260709_002838_1376ba99-91c6-4198-ae11-7e3386326316.png"
+  [ui_hpframe.png]="$CDN/hf_20260709_002853_018a031f-c354-492b-8a07-94867fc66c42.png"
+  # Waluty i plakietka poziomu (wycięte tło)
+  [ui_coin.png]="$CDN/hf_20260709_002958_477d2d39-c5b8-403d-a465-1d7921c2f73f.png"
+  [ui_gem.png]="$CDN/hf_20260709_003001_012f6a65-b38c-49f5-a6a3-b4cc3dc5fd72.png"
+  [ui_levelbadge.png]="$CDN/hf_20260709_003003_43b5a27d-58ce-42d9-9415-bee9b817efca.png"
   # Ikony 5 spelli (kwadratowe, z własną ramką)
   [spell1.png]="$CDN/hf_20260708_231351_9d89313a-cd38-46bc-b655-e631c393c100.png"
   [spell2.png]="$CDN/hf_20260708_231400_cd2e8734-b7d5-4a5e-becd-766a781c2e87.png"
