@@ -69,7 +69,6 @@ export class UIScene extends Phaser.Scene {
   /** Grafika nad ikonami (znaczniki założenia itp.). */
   private winHigh!: Phaser.GameObjects.Graphics;
   private crosshair!: Phaser.GameObjects.Image;
-  private mpFrame: Phaser.GameObjects.Image | null = null;
 
   private bossName!: Phaser.GameObjects.Text;
   private playerHpText!: Phaser.GameObjects.Text;
@@ -81,10 +80,6 @@ export class UIScene extends Phaser.Scene {
   private deathText!: Phaser.GameObjects.Text;
   private netError!: Phaser.GameObjects.Text;
 
-  private hpFrame: Phaser.GameObjects.Image | null = null;
-  private levelBadge: Phaser.GameObjects.Image | null = null;
-  private coinIcon: Phaser.GameObjects.Image | null = null;
-  private gemIcon: Phaser.GameObjects.Image | null = null;
 
   private spellSlots: {
     frame: Phaser.GameObjects.Image | null;
@@ -93,6 +88,7 @@ export class UIScene extends Phaser.Scene {
     key: Phaser.GameObjects.Text;
     cd: string | null;
     locked: boolean;
+    framedIcon: boolean;
   }[] = [];
 
   // Sklep
@@ -141,21 +137,6 @@ export class UIScene extends Phaser.Scene {
     this.levelText = this.text(0, 0, "1", "16px", "#ffe9b0").setOrigin(0.5).setDepth(13);
     this.xpText = this.text(0, 0, "", "10px", "#d9b96a").setOrigin(1, 1).setDepth(13);
 
-    // Chrom UI (tekstury) POD grafiką hud (depth 10), by wypełnienia
-    // pasków i teksty rysowały się NAD ramkami.
-    if (this.textures.exists("ui_hpframe")) {
-      this.hpFrame = this.add.image(0, 0, "ui_hpframe").setDepth(9).setVisible(false);
-      this.mpFrame = this.add.image(0, 0, "ui_hpframe").setDepth(9).setVisible(false);
-    }
-    if (this.textures.exists("ui_levelbadge")) {
-      this.levelBadge = this.add.image(0, 0, "ui_levelbadge").setDepth(9).setVisible(false);
-    }
-    if (this.textures.exists("ui_coin")) {
-      this.coinIcon = this.add.image(0, 0, "ui_coin").setDepth(13).setVisible(false);
-    }
-    if (this.textures.exists("ui_gem")) {
-      this.gemIcon = this.add.image(0, 0, "ui_gem").setDepth(13).setVisible(false);
-    }
 
     this.createSpellSlots();
 
@@ -221,7 +202,7 @@ export class UIScene extends Phaser.Scene {
       const key = this.text(0, 0, def.key, "11px", def.locked ? "#6a7488" : "#e8d9ac")
         .setOrigin(0.5)
         .setDepth(13);
-      return { frame, icon, placeholder, key, cd: def.cd, locked: def.locked };
+      return { frame, icon, placeholder, key, cd: def.cd, locked: def.locked, framedIcon: this.textures.exists(artKey) };
     });
   }
 
@@ -384,34 +365,13 @@ export class UIScene extends Phaser.Scene {
 
       // --- HP (z ozdobną ramką, jeśli jest) ---
       const hpRatio = Phaser.Math.Clamp(me.hp / me.maxHp, 0, 1);
-      const hpCol = 0xb3202e; // krwista czerwień (dark fantasy)
-      if (this.hpFrame) {
-        this.hpFrame.setVisible(true).setPosition(w / 2, hpY + hpH / 2).setDisplaySize(pw + 24, hpH + 16);
-        this.hud.fillStyle(0x120a0c, 0.94).fillRect(px + 4, hpY + 2, pw - 8, hpH - 4);
-        this.hud.fillStyle(hpCol, 1).fillRect(px + 4, hpY + 2, (pw - 8) * hpRatio, hpH - 4);
-        this.hud.fillStyle(0xff8a90, 0.25).fillRect(px + 4, hpY + 2, (pw - 8) * hpRatio, 4);
-      } else {
-        this.panel(px - 3, hpY - 3, pw + 6, hpH + 6, 0x0b0a12, 0x4a4458);
-        this.hud.fillStyle(0x120a0c, 1).fillRect(px, hpY, pw, hpH);
-        this.hud.fillStyle(hpCol, 1).fillRect(px, hpY, pw * hpRatio, hpH);
-        this.hud.fillStyle(0xff8a90, 0.25).fillRect(px, hpY, pw * hpRatio, 5);
-      }
+      this.gothicBar(px, hpY, pw, hpH, hpRatio, 0xb3202e, 0xff8a90);
       this.playerHpText.setText(`${Math.ceil(me.hp)} / ${me.maxHp}`).setPosition(w / 2, hpY + hpH / 2);
 
       // --- Mana (niebieski, cieńszy; miga na czerwono przy braku) ---
       const mpRatio = Phaser.Math.Clamp(me.mp / me.maxMp, 0, 1);
       const manaFlash = this.time.now < ((this.registry.get("manaFlash") as number) ?? 0);
-      if (this.mpFrame) {
-        this.mpFrame.setVisible(true).setPosition(w / 2, mpY + mpH / 2).setDisplaySize(pw + 24, mpH + 14);
-        this.hud.fillStyle(0x0c0a16, 0.94).fillRect(px + 4, mpY + 1, pw - 8, mpH - 2);
-        this.hud.fillStyle(manaFlash ? 0xd23a4a : 0x5a4fd0, 1).fillRect(px + 4, mpY + 1, (pw - 8) * mpRatio, mpH - 2);
-        this.hud.fillStyle(0xbfb0ff, 0.3).fillRect(px + 4, mpY + 1, (pw - 8) * mpRatio, 3);
-      } else {
-        this.panel(px - 3, mpY - 3, pw + 6, mpH + 6, 0x0b0a12, manaFlash ? 0xd23a4a : 0x4a4458);
-        this.hud.fillStyle(0x0c0a16, 1).fillRect(px, mpY, pw, mpH);
-        this.hud.fillStyle(manaFlash ? 0xd23a4a : 0x5a4fd0, 1).fillRect(px, mpY, pw * mpRatio, mpH);
-        this.hud.fillStyle(0xbfb0ff, 0.3).fillRect(px, mpY, pw * mpRatio, 3);
-      }
+      this.gothicBar(px, mpY, pw, mpH, mpRatio, manaFlash ? 0xd23a4a : 0x5a4fd0, 0xbfb0ff);
       this.playerMpText
         .setText(`${Math.floor(me.mp)} / ${me.maxMp}`)
         .setPosition(w / 2, mpY + mpH / 2 + 1);
@@ -419,12 +379,14 @@ export class UIScene extends Phaser.Scene {
       // --- Plakietka poziomu po lewej ---
       const bx = px - 44;
       const by = sy - 26;
-      if (this.levelBadge) {
-        this.levelBadge.setVisible(true).setPosition(bx, by).setDisplaySize(56, 56);
-      } else {
-        this.hud.fillStyle(0x0b0a12, 0.96).fillCircle(bx, by, 24);
-        this.hud.lineStyle(3, 0x5a4a78, 1).strokeCircle(bx, by, 24);
-        this.hud.lineStyle(1, 0x3a3448, 1).strokeCircle(bx, by, 19);
+      this.hud.fillStyle(0x000000, 0.4).fillCircle(bx + 2, by + 3, 24);
+      this.hud.fillStyle(0x0e0b14, 0.97).fillCircle(bx, by, 24);
+      this.hud.lineStyle(3, 0x3a3444, 1).strokeCircle(bx, by, 24);
+      this.hud.lineStyle(1, 0x6a5aa0, 1).strokeCircle(bx, by, 20);
+      // Ćwieki na pierścieniu (N/E/S/W).
+      this.hud.fillStyle(0x6a5aa0, 1);
+      for (const [dx, dy] of [[0, -24], [24, 0], [0, 24], [-24, 0]] as const) {
+        this.hud.fillRect(bx + dx - 2, by + dy - 2, 4, 4);
       }
       this.levelText.setText(String(me.level)).setPosition(bx, by);
 
@@ -432,19 +394,15 @@ export class UIScene extends Phaser.Scene {
       const cx = px + pw + 14;
       const cw = 118;
       this.panel(cx, sy - 46, cw, 44, 0x0b0a12, 0x4a4458);
-      if (this.coinIcon) {
-        this.coinIcon.setVisible(true).setPosition(cx + 14, sy - 35).setDisplaySize(18, 18);
-      } else {
-        this.hud.fillStyle(0xffd76b, 1).fillCircle(cx + 14, sy - 35, 7);
-        this.hud.lineStyle(1, 0x8a6a3c, 1).strokeCircle(cx + 14, sy - 35, 7);
-      }
+      // Złota moneta (rysowana — ostra przy małym rozmiarze).
+      this.hud.fillStyle(0x8a6a2c, 1).fillCircle(cx + 14, sy - 35, 8);
+      this.hud.fillStyle(0xd8a43c, 1).fillCircle(cx + 14, sy - 35, 6);
+      this.hud.fillStyle(0xffe9b0, 1).fillRect(cx + 11, sy - 39, 2, 2);
       this.goldText.setText(String(me.gold)).setPosition(cx + 28, sy - 35);
-      if (this.gemIcon) {
-        this.gemIcon.setVisible(true).setPosition(cx + 14, sy - 13).setDisplaySize(18, 18);
-      } else {
-        this.hud.fillStyle(0x7fd4ff, 1).fillTriangle(cx + 14, sy - 20, cx + 7, sy - 11, cx + 21, sy - 11);
-        this.hud.fillStyle(0x4fa8e0, 1).fillTriangle(cx + 14, sy - 4, cx + 7, sy - 11, cx + 21, sy - 11);
-      }
+      // Smocza Moneta: fioletowy kryształ.
+      this.hud.fillStyle(0x4a3a6a, 1).fillCircle(cx + 14, sy - 13, 8);
+      this.hud.fillStyle(0x8a5aff, 1).fillTriangle(cx + 14, sy - 19, cx + 8, sy - 13, cx + 20, sy - 13);
+      this.hud.fillStyle(0xb99aff, 1).fillTriangle(cx + 14, sy - 7, cx + 8, sy - 13, cx + 20, sy - 13);
       this.gemsText.setText(String(me.gems)).setPosition(cx + 28, sy - 13);
 
       // --- Pasek XP na samym dole ekranu ---
@@ -469,16 +427,24 @@ export class UIScene extends Phaser.Scene {
   }
 
   private drawSpellSlot(x: number, y: number, size: number, s: (typeof this.spellSlots)[number]) {
-    if (s.frame) {
-      s.frame.setPosition(x + size / 2, y + size / 2).setDisplaySize(size, size);
-      s.frame.setAlpha(s.locked ? 0.55 : 1);
-    } else {
-      this.panel(x, y, size, size, 0x0b0a12, s.locked ? 0x2a2636 : 0x4a4458);
-    }
-    if (s.icon) {
-      s.icon.setPosition(x + size / 2, y + size / 2 - 3);
-      s.icon.setDisplaySize(size - 16, size - 16);
+    // Ikony spelli mają już własne kamienne ramki — wypełniają cały slot.
+    if (s.framedIcon && s.icon) {
+      s.frame?.setVisible(false);
+      s.icon.setPosition(x + size / 2, y + size / 2);
+      s.icon.setDisplaySize(size, size);
       s.icon.setAlpha(s.locked ? 0.3 : 1);
+    } else {
+      if (s.frame) {
+        s.frame.setVisible(true).setPosition(x + size / 2, y + size / 2).setDisplaySize(size, size);
+        s.frame.setAlpha(s.locked ? 0.55 : 1);
+      } else {
+        this.panel(x, y, size, size, 0x0b0a12, s.locked ? 0x2a2636 : 0x4a4458);
+      }
+      if (s.icon) {
+        s.icon.setPosition(x + size / 2, y + size / 2 - 3);
+        s.icon.setDisplaySize(size - 16, size - 16);
+        s.icon.setAlpha(s.locked ? 0.3 : 1);
+      }
     }
     if (s.placeholder) s.placeholder.setPosition(x + size / 2, y + size / 2 - 3);
     // Plakietka klawisza.
@@ -722,6 +688,32 @@ export class UIScene extends Phaser.Scene {
       this.wpanel(x - 3, y - 3, w + 6, h + 6, 0x0b0a12, border);
       this.winLow.lineStyle(1, 0x2a2636, 1).strokeRect(x + 4, y + 4, w - 8, h - 8);
     }
+  }
+
+  /**
+   * Gotycki pasek zasobu rysowany pixel-perfect: podwójna ramka z
+   * czernionego żelaza, ćwieki na końcach, nacięcia co 25%, wypełnienie
+   * z połyskiem.
+   */
+  private gothicBar(x: number, y: number, w: number, h: number, ratio: number, fill: number, gloss: number) {
+    // Cień + korpus.
+    this.hud.fillStyle(0x000000, 0.4).fillRect(x - 2, y + 2, w + 4, h + 2);
+    this.hud.fillStyle(0x0e0b14, 0.97).fillRect(x - 3, y - 3, w + 6, h + 6);
+    this.hud.lineStyle(2, 0x3a3444, 1).strokeRect(x - 3, y - 3, w + 6, h + 6);
+    this.hud.lineStyle(1, 0x6a5aa0, 0.8).strokeRect(x - 1, y - 1, w + 2, h + 2);
+    // Wnętrze i wypełnienie.
+    this.hud.fillStyle(0x120e18, 1).fillRect(x, y, w, h);
+    this.hud.fillStyle(fill, 1).fillRect(x, y, w * ratio, h);
+    this.hud.fillStyle(gloss, 0.28).fillRect(x, y, w * ratio, Math.max(2, Math.floor(h / 4)));
+    // Nacięcia co 25%.
+    this.hud.lineStyle(1, 0x000000, 0.35);
+    for (let i = 1; i < 4; i++) {
+      this.hud.lineBetween(x + (w / 4) * i, y, x + (w / 4) * i, y + h);
+    }
+    // Ćwieki na końcach.
+    this.hud.fillStyle(0x6a5aa0, 1);
+    this.hud.fillRect(x - 5, y + h / 2 - 2, 4, 4);
+    this.hud.fillRect(x + w + 1, y + h / 2 - 2, 4, 4);
   }
 
   /** Panel rysowany w warstwie okien (nad teksturami paneli). */

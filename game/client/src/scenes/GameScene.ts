@@ -85,13 +85,9 @@ export class GameScene extends Phaser.Scene {
     // Ikony przedmiotów sklepu/ekwipunku + portret kupca do okna dialogu.
     for (const id of Object.keys(ITEMS)) this.load.image(`art_item_${id}`, `assets/item_${id}.png`);
     this.load.image("art_npc_portrait", "assets/npc_portrait.png");
-    // Tekstury UI (panel, slot, ramka paska HP, monety, plakietka poziomu).
+    // Tekstury UI (panel okien + slot; paski/monety/medalion rysujemy w kodzie).
     this.load.image("ui_panel", "assets/ui_panel.png");
     this.load.image("ui_slot", "assets/ui_slot.png");
-    this.load.image("ui_hpframe", "assets/ui_hpframe.png");
-    this.load.image("ui_coin", "assets/ui_coin.png");
-    this.load.image("ui_gem", "assets/ui_gem.png");
-    this.load.image("ui_levelbadge", "assets/ui_levelbadge.png");
     this.load.on("loaderror", (file: Phaser.Loader.File) => {
       console.info(`[assets] brak "${file.key}" — fallback do pixel-artu`);
     });

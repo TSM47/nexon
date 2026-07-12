@@ -38,11 +38,6 @@ declare -A ASSETS=(
   # Tekstury UI (dark fantasy: czernione żelazo, gotyk, fioletowa poświata)
   [ui_slot.png]="$CDN/hf_20260712_154633_8a088555-c1d6-4e8c-b283-cbc3dffa17b0.png"
   [ui_panel.png]="$CDN/hf_20260712_154644_736b666c-38fa-416a-b868-00a59ebe54e9.png"
-  [ui_hpframe.png]="$CDN/hf_20260712_154623_29c728ac-1ff3-4baa-a972-1f4cba2b2187.png"
-  # Waluty i plakietka poziomu (wycięte tło)
-  [ui_coin.png]="$CDN/hf_20260712_154906_e92401b5-c6f7-4ac2-836d-adbfea0aef51.png"
-  [ui_gem.png]="$CDN/hf_20260712_154914_e2c7edd3-8450-4ccd-80b2-3443df0c5b4f.png"
-  [ui_levelbadge.png]="$CDN/hf_20260712_154758_bfba05e5-b486-4cbe-bed7-b1b6962ecbb3.png"
   # Ikony 5 spelli (kwadratowe, z własną ramką)
   [spell1.png]="$CDN/hf_20260708_231351_9d89313a-cd38-46bc-b655-e631c393c100.png"
   [spell2.png]="$CDN/hf_20260708_231400_cd2e8734-b7d5-4a5e-becd-766a781c2e87.png"
