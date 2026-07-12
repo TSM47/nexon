@@ -35,14 +35,14 @@ declare -A ASSETS=(
   [item_rune.png]="$CDN/hf_20260709_001202_2029d95a-ebcd-4f62-9ad7-8c53e7251b0b.png"
   # Portret Eldrica do okna dialogowego
   [npc_portrait.png]="$CDN/hf_20260708_235708_152ad3b9-c31e-463f-b246-10c0a3e5ebce.png"
-  # Tekstury UI (rustykalne średniowieczne: dąb, kute żelazo, skóra)
-  [ui_slot.png]="$CDN/hf_20260709_002840_4e31d458-b90e-4b26-a4e5-8fb887571990.png"
-  [ui_panel.png]="$CDN/hf_20260709_002838_1376ba99-91c6-4198-ae11-7e3386326316.png"
-  [ui_hpframe.png]="$CDN/hf_20260709_002853_018a031f-c354-492b-8a07-94867fc66c42.png"
+  # Tekstury UI (dark fantasy: czernione żelazo, gotyk, fioletowa poświata)
+  [ui_slot.png]="$CDN/hf_20260712_154633_8a088555-c1d6-4e8c-b283-cbc3dffa17b0.png"
+  [ui_panel.png]="$CDN/hf_20260712_154644_736b666c-38fa-416a-b868-00a59ebe54e9.png"
+  [ui_hpframe.png]="$CDN/hf_20260712_154623_29c728ac-1ff3-4baa-a972-1f4cba2b2187.png"
   # Waluty i plakietka poziomu (wycięte tło)
-  [ui_coin.png]="$CDN/hf_20260709_002958_477d2d39-c5b8-403d-a465-1d7921c2f73f.png"
-  [ui_gem.png]="$CDN/hf_20260709_003001_012f6a65-b38c-49f5-a6a3-b4cc3dc5fd72.png"
-  [ui_levelbadge.png]="$CDN/hf_20260709_003003_43b5a27d-58ce-42d9-9415-bee9b817efca.png"
+  [ui_coin.png]="$CDN/hf_20260712_154906_e92401b5-c6f7-4ac2-836d-adbfea0aef51.png"
+  [ui_gem.png]="$CDN/hf_20260712_154914_e2c7edd3-8450-4ccd-80b2-3443df0c5b4f.png"
+  [ui_levelbadge.png]="$CDN/hf_20260712_154758_bfba05e5-b486-4cbe-bed7-b1b6962ecbb3.png"
   # Ikony 5 spelli (kwadratowe, z własną ramką)
   [spell1.png]="$CDN/hf_20260708_231351_9d89313a-cd38-46bc-b655-e631c393c100.png"
   [spell2.png]="$CDN/hf_20260708_231400_cd2e8734-b7d5-4a5e-becd-766a781c2e87.png"
