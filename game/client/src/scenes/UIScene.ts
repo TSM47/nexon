@@ -64,7 +64,12 @@ interface ShopRow {
 
 export class UIScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Graphics;
+  /** Grafika okien — rysowana NAD teksturą panelu (fills, linie, ramki). */
+  private winLow!: Phaser.GameObjects.Graphics;
+  /** Grafika nad ikonami (znaczniki założenia itp.). */
+  private winHigh!: Phaser.GameObjects.Graphics;
   private crosshair!: Phaser.GameObjects.Image;
+  private mpFrame: Phaser.GameObjects.Image | null = null;
 
   private bossName!: Phaser.GameObjects.Text;
   private playerHpText!: Phaser.GameObjects.Text;
@@ -125,6 +130,8 @@ export class UIScene extends Phaser.Scene {
 
   create() {
     this.hud = this.add.graphics().setDepth(10);
+    this.winLow = this.add.graphics().setDepth(24);
+    this.winHigh = this.add.graphics().setDepth(27);
 
     this.bossName = this.text(0, 0, "", "14px", "#ffd0d6").setOrigin(0.5).setDepth(11);
     this.playerHpText = this.text(0, 0, "", "12px", "#eafaf0").setOrigin(0.5).setDepth(13);
@@ -134,11 +141,14 @@ export class UIScene extends Phaser.Scene {
     this.levelText = this.text(0, 0, "1", "16px", "#ffe9b0").setOrigin(0.5).setDepth(13);
     this.xpText = this.text(0, 0, "", "10px", "#d9b96a").setOrigin(1, 1).setDepth(13);
 
+    // Chrom UI (tekstury) POD grafiką hud (depth 10), by wypełnienia
+    // pasków i teksty rysowały się NAD ramkami.
     if (this.textures.exists("ui_hpframe")) {
-      this.hpFrame = this.add.image(0, 0, "ui_hpframe").setDepth(12).setVisible(false);
+      this.hpFrame = this.add.image(0, 0, "ui_hpframe").setDepth(9).setVisible(false);
+      this.mpFrame = this.add.image(0, 0, "ui_hpframe").setDepth(9).setVisible(false);
     }
     if (this.textures.exists("ui_levelbadge")) {
-      this.levelBadge = this.add.image(0, 0, "ui_levelbadge").setDepth(12).setVisible(false);
+      this.levelBadge = this.add.image(0, 0, "ui_levelbadge").setDepth(9).setVisible(false);
     }
     if (this.textures.exists("ui_coin")) {
       this.coinIcon = this.add.image(0, 0, "ui_coin").setDepth(13).setVisible(false);
@@ -170,14 +180,14 @@ export class UIScene extends Phaser.Scene {
 
   private mkSlot(interactive: boolean): UISlot {
     const frame = this.textures.exists("ui_slot")
-      ? this.add.image(0, 0, "ui_slot").setDepth(25).setVisible(false)
+      ? this.add.image(0, 0, "ui_slot").setDepth(24).setVisible(false)
       : null;
     const icon = this.add.image(0, 0, "glow").setDepth(26).setVisible(false);
     const label = this.text(0, 0, "", "9px", "#8b95aa").setOrigin(0.5).setDepth(26).setVisible(false);
     const zone = this.add
       .rectangle(0, 0, 10, 10, 0xffffff, 0.001)
       .setOrigin(0.5)
-      .setDepth(27)
+      .setDepth(28)
       .setVisible(false);
     const slot: UISlot = { zone, frame, icon, label, hover: false };
     if (interactive) {
@@ -198,7 +208,7 @@ export class UIScene extends Phaser.Scene {
     ];
     this.spellSlots = slotDefs.map((def, i) => {
       const artKey = `art_spell${i + 1}`;
-      const frame = this.textures.exists("ui_slot") ? this.add.image(0, 0, "ui_slot").setDepth(11) : null;
+      const frame = this.textures.exists("ui_slot") ? this.add.image(0, 0, "ui_slot").setDepth(9) : null;
       let icon: Phaser.GameObjects.Image | null = null;
       let placeholder: Phaser.GameObjects.Text | null = null;
       if (this.textures.exists(artKey)) {
@@ -217,7 +227,7 @@ export class UIScene extends Phaser.Scene {
 
   private createShop() {
     this.shopPanelImg = this.textures.exists("ui_panel")
-      ? this.add.image(0, 0, "ui_panel").setDepth(24).setVisible(false)
+      ? this.add.image(0, 0, "ui_panel").setDepth(23).setVisible(false)
       : null;
     this.shopPortrait = this.textures.exists("art_npc_portrait")
       ? this.add.image(0, 0, "art_npc_portrait").setDepth(26).setVisible(false)
@@ -232,7 +242,7 @@ export class UIScene extends Phaser.Scene {
       const bg = this.add
         .rectangle(0, 0, 10, 10, 0x1a2233, 0.001)
         .setOrigin(0)
-        .setDepth(25)
+        .setDepth(24)
         .setInteractive()
         .on("pointerover", () => bg.setFillStyle(0x27324a, 0.9))
         .on("pointerout", () => bg.setFillStyle(0x1a2233, 0.001))
@@ -251,7 +261,7 @@ export class UIScene extends Phaser.Scene {
 
   private createInventory() {
     this.invPanelImg = this.textures.exists("ui_panel")
-      ? this.add.image(0, 0, "ui_panel").setDepth(24).setVisible(false)
+      ? this.add.image(0, 0, "ui_panel").setDepth(23).setVisible(false)
       : null;
     this.invTitle = this.text(0, 0, "EKWIPUNEK", "15px", "#cfe0ff").setDepth(26).setVisible(false);
     this.invGold = this.text(0, 0, "", "13px", "#ffd76b").setOrigin(1, 0).setDepth(26).setVisible(false);
@@ -316,6 +326,8 @@ export class UIScene extends Phaser.Scene {
     const w = this.scale.width;
     const h = this.scale.height;
     this.hud.clear();
+    this.winLow.clear();
+    this.winHigh.clear();
 
     const ptr = this.input.activePointer;
     this.crosshair.setPosition(ptr.x, ptr.y);
@@ -372,28 +384,34 @@ export class UIScene extends Phaser.Scene {
 
       // --- HP (z ozdobną ramką, jeśli jest) ---
       const hpRatio = Phaser.Math.Clamp(me.hp / me.maxHp, 0, 1);
+      const hpCol = 0xb3202e; // krwista czerwień (dark fantasy)
       if (this.hpFrame) {
         this.hpFrame.setVisible(true).setPosition(w / 2, hpY + hpH / 2).setDisplaySize(pw + 24, hpH + 16);
-        this.hud.fillStyle(0x1a1410, 0.92).fillRect(px + 4, hpY + 2, pw - 8, hpH - 4);
-        this.hud
-          .fillStyle(hpRatio > 0.3 ? 0x46c96a : 0xd23a4a, 1)
-          .fillRect(px + 4, hpY + 2, (pw - 8) * hpRatio, hpH - 4);
-        this.hud.fillStyle(0xffffff, 0.2).fillRect(px + 4, hpY + 2, (pw - 8) * hpRatio, 4);
+        this.hud.fillStyle(0x120a0c, 0.94).fillRect(px + 4, hpY + 2, pw - 8, hpH - 4);
+        this.hud.fillStyle(hpCol, 1).fillRect(px + 4, hpY + 2, (pw - 8) * hpRatio, hpH - 4);
+        this.hud.fillStyle(0xff8a90, 0.25).fillRect(px + 4, hpY + 2, (pw - 8) * hpRatio, 4);
       } else {
-        this.panel(px - 3, hpY - 3, pw + 6, hpH + 6, 0x14100c, 0x6a5334);
-        this.hud.fillStyle(0x241c14, 1).fillRect(px, hpY, pw, hpH);
-        this.hud.fillStyle(hpRatio > 0.3 ? 0x46c96a : 0xd23a4a, 1).fillRect(px, hpY, pw * hpRatio, hpH);
-        this.hud.fillStyle(0xffffff, 0.2).fillRect(px, hpY, pw * hpRatio, 5);
+        this.panel(px - 3, hpY - 3, pw + 6, hpH + 6, 0x0b0a12, 0x4a4458);
+        this.hud.fillStyle(0x120a0c, 1).fillRect(px, hpY, pw, hpH);
+        this.hud.fillStyle(hpCol, 1).fillRect(px, hpY, pw * hpRatio, hpH);
+        this.hud.fillStyle(0xff8a90, 0.25).fillRect(px, hpY, pw * hpRatio, 5);
       }
       this.playerHpText.setText(`${Math.ceil(me.hp)} / ${me.maxHp}`).setPosition(w / 2, hpY + hpH / 2);
 
       // --- Mana (niebieski, cieńszy; miga na czerwono przy braku) ---
       const mpRatio = Phaser.Math.Clamp(me.mp / me.maxMp, 0, 1);
       const manaFlash = this.time.now < ((this.registry.get("manaFlash") as number) ?? 0);
-      this.panel(px - 3, mpY - 3, pw + 6, mpH + 6, 0x0c1014, manaFlash ? 0xd23a4a : 0x33506a);
-      this.hud.fillStyle(0x141c26, 1).fillRect(px, mpY, pw, mpH);
-      this.hud.fillStyle(0x3f8fe0, 1).fillRect(px, mpY, pw * mpRatio, mpH);
-      this.hud.fillStyle(0xffffff, 0.22).fillRect(px, mpY, pw * mpRatio, 3);
+      if (this.mpFrame) {
+        this.mpFrame.setVisible(true).setPosition(w / 2, mpY + mpH / 2).setDisplaySize(pw + 24, mpH + 14);
+        this.hud.fillStyle(0x0c0a16, 0.94).fillRect(px + 4, mpY + 1, pw - 8, mpH - 2);
+        this.hud.fillStyle(manaFlash ? 0xd23a4a : 0x5a4fd0, 1).fillRect(px + 4, mpY + 1, (pw - 8) * mpRatio, mpH - 2);
+        this.hud.fillStyle(0xbfb0ff, 0.3).fillRect(px + 4, mpY + 1, (pw - 8) * mpRatio, 3);
+      } else {
+        this.panel(px - 3, mpY - 3, pw + 6, mpH + 6, 0x0b0a12, manaFlash ? 0xd23a4a : 0x4a4458);
+        this.hud.fillStyle(0x0c0a16, 1).fillRect(px, mpY, pw, mpH);
+        this.hud.fillStyle(manaFlash ? 0xd23a4a : 0x5a4fd0, 1).fillRect(px, mpY, pw * mpRatio, mpH);
+        this.hud.fillStyle(0xbfb0ff, 0.3).fillRect(px, mpY, pw * mpRatio, 3);
+      }
       this.playerMpText
         .setText(`${Math.floor(me.mp)} / ${me.maxMp}`)
         .setPosition(w / 2, mpY + mpH / 2 + 1);
@@ -404,16 +422,16 @@ export class UIScene extends Phaser.Scene {
       if (this.levelBadge) {
         this.levelBadge.setVisible(true).setPosition(bx, by).setDisplaySize(56, 56);
       } else {
-        this.hud.fillStyle(0x14100c, 0.95).fillCircle(bx, by, 24);
-        this.hud.lineStyle(3, 0x8a6a3c, 1).strokeCircle(bx, by, 24);
-        this.hud.lineStyle(1, 0x54452a, 1).strokeCircle(bx, by, 19);
+        this.hud.fillStyle(0x0b0a12, 0.96).fillCircle(bx, by, 24);
+        this.hud.lineStyle(3, 0x5a4a78, 1).strokeCircle(bx, by, 24);
+        this.hud.lineStyle(1, 0x3a3448, 1).strokeCircle(bx, by, 19);
       }
       this.levelText.setText(String(me.level)).setPosition(bx, by);
 
       // --- Panel walut po prawej: złoto + Smocze Monety ---
       const cx = px + pw + 14;
       const cw = 118;
-      this.panel(cx, sy - 46, cw, 44, 0x14100c, 0x6a5334);
+      this.panel(cx, sy - 46, cw, 44, 0x0b0a12, 0x4a4458);
       if (this.coinIcon) {
         this.coinIcon.setVisible(true).setPosition(cx + 14, sy - 35).setDisplaySize(18, 18);
       } else {
@@ -431,10 +449,10 @@ export class UIScene extends Phaser.Scene {
 
       // --- Pasek XP na samym dole ekranu ---
       const xpRatio = Phaser.Math.Clamp(me.xp / me.xpMax, 0, 1);
-      this.hud.fillStyle(0x0e0b08, 1).fillRect(0, h - xpH, w, xpH);
-      this.hud.fillStyle(0xd9a441, 1).fillRect(0, h - xpH, w * xpRatio, xpH);
-      this.hud.fillStyle(0xffe9b0, 0.35).fillRect(0, h - xpH, w * xpRatio, 3);
-      this.hud.lineStyle(1, 0x54452a, 1).lineBetween(0, h - xpH, w, h - xpH);
+      this.hud.fillStyle(0x080609, 1).fillRect(0, h - xpH, w, xpH);
+      this.hud.fillStyle(0xc9701e, 1).fillRect(0, h - xpH, w * xpRatio, xpH);
+      this.hud.fillStyle(0xffc46b, 0.4).fillRect(0, h - xpH, w * xpRatio, 3);
+      this.hud.lineStyle(1, 0x3a3448, 1).lineBetween(0, h - xpH, w, h - xpH);
       // Znaczniki co 10%.
       this.hud.lineStyle(1, 0x000000, 0.4);
       for (let i = 1; i < 10; i++) {
@@ -455,7 +473,7 @@ export class UIScene extends Phaser.Scene {
       s.frame.setPosition(x + size / 2, y + size / 2).setDisplaySize(size, size);
       s.frame.setAlpha(s.locked ? 0.55 : 1);
     } else {
-      this.panel(x, y, size, size, 0x0e1420, s.locked ? 0x2a3244 : 0x3a4a66);
+      this.panel(x, y, size, size, 0x0b0a12, s.locked ? 0x2a2636 : 0x4a4458);
     }
     if (s.icon) {
       s.icon.setPosition(x + size / 2, y + size / 2 - 3);
@@ -464,8 +482,8 @@ export class UIScene extends Phaser.Scene {
     }
     if (s.placeholder) s.placeholder.setPosition(x + size / 2, y + size / 2 - 3);
     // Plakietka klawisza.
-    this.hud.fillStyle(0x10141d, 0.85).fillRect(x + size / 2 - 16, y + size - 14, 32, 12);
-    this.hud.lineStyle(1, 0x54452a, 1).strokeRect(x + size / 2 - 16, y + size - 14, 32, 12);
+    this.hud.fillStyle(0x0b0a12, 0.9).fillRect(x + size / 2 - 16, y + size - 14, 32, 12);
+    this.hud.lineStyle(1, 0x4a4458, 1).strokeRect(x + size / 2 - 16, y + size - 14, 32, 12);
     s.key.setPosition(x + size / 2, y + size - 8);
 
     if (s.locked || !s.cd) return;
@@ -503,7 +521,7 @@ export class UIScene extends Phaser.Scene {
 
     this.drawWindow(this.shopPanelImg, px, py, pw, ph, 0x8a6a3c);
     if (this.shopPortrait) {
-      this.panel(px + 14, py + 10, 36, 36, 0x141a26, 0x8a6a3c);
+      this.wpanel(px + 14, py + 10, 36, 36, 0x120e18, 0x8a6a3c);
       const tex = this.textures.get("art_npc_portrait").getSourceImage();
       const fit = Math.min(32 / tex.width, 32 / tex.height);
       this.shopPortrait.setPosition(px + 32, py + 28).setScale(fit);
@@ -516,13 +534,13 @@ export class UIScene extends Phaser.Scene {
       .setText(me ? `twoje złoto: ${me.gold} zł` : "")
       .setColor(flash ? "#ff6b78" : "#ffd76b")
       .setPosition(px + pw - 18, py + 20);
-    this.hud.lineStyle(1, 0x54452a, 1).lineBetween(px + 14, py + 52, px + pw - 14, py + 52);
+    this.winLow.lineStyle(1, 0x54452a, 1).lineBetween(px + 14, py + 52, px + pw - 14, py + 52);
 
     SHOP_STOCK.forEach((id, i) => {
       const r = this.shopRows[i];
       const ry = py + 62 + i * rowH;
       r.bg.setPosition(px + 10, ry - 3).setSize(pw - 20, rowH - 2);
-      this.panel(px + 16, ry, 34, 34, 0x141a26, 0x3a4a66);
+      this.wpanel(px + 16, ry, 34, 34, 0x120e18, 0x4a4458);
       if (r.icon) {
         r.icon.setPosition(px + 33, ry + 17);
         r.icon.setDisplaySize(30, 30);
@@ -620,7 +638,7 @@ export class UIScene extends Phaser.Scene {
     const bagW = cols * bs + (cols - 1) * bgap;
     const bagX = cx - bagW / 2;
     const bagY = dollTop + 296;
-    this.hud.lineStyle(1, 0x2a4468, 1).lineBetween(px + 14, bagY - 10, px + pw - 14, bagY - 10);
+    this.winLow.lineStyle(1, 0x3a3448, 1).lineBetween(px + 14, bagY - 10, px + pw - 14, bagY - 10);
     this.bagSlots.forEach((s, i) => {
       const x = bagX + (i % cols) * (bs + bgap) + bs / 2;
       const y = bagY + Math.floor(i / cols) * (bs + bgap) + bs / 2;
@@ -648,7 +666,7 @@ export class UIScene extends Phaser.Scene {
       s.frame.setVisible(true).setPosition(x, y).setDisplaySize(size, size);
       s.frame.setAlpha(s.hover ? 1 : 0.9);
     } else {
-      this.panel(x - size / 2, y - size / 2, size, size, s.hover ? 0x1c2536 : 0x141a26, isEquipSlot ? 0x3a5a8a : 0x3a4a66);
+      this.wpanel(x - size / 2, y - size / 2, size, size, s.hover ? 0x1e1828 : 0x120e18, isEquipSlot ? 0x5a4a78 : 0x4a4458);
     }
     if (itemId) {
       const artKey = `art_item_${itemId}`;
@@ -667,7 +685,8 @@ export class UIScene extends Phaser.Scene {
           .setFontSize(18);
       }
       if (equippedMark) {
-        this.hud.fillStyle(0x6fe3a0, 1).fillCircle(x + size / 2 - 7, y - size / 2 + 7, 4);
+        this.winHigh.fillStyle(0x6fe3a0, 1).fillCircle(x + size / 2 - 7, y - size / 2 + 7, 4);
+        this.winHigh.lineStyle(1, 0x0b0a12, 1).strokeCircle(x + size / 2 - 7, y - size / 2 + 7, 4);
       }
     } else {
       s.icon.setVisible(false);
@@ -698,11 +717,17 @@ export class UIScene extends Phaser.Scene {
   ) {
     if (img) {
       img.setPosition(x + w / 2, y + h / 2).setDisplaySize(w, h);
-      this.hud.lineStyle(2, border, 1).strokeRect(x, y, w, h);
+      this.winLow.lineStyle(2, border, 1).strokeRect(x, y, w, h);
     } else {
-      this.panel(x - 3, y - 3, w + 6, h + 6, 0x0b0f18, border);
-      this.hud.lineStyle(1, 0x2a3244, 1).strokeRect(x + 4, y + 4, w - 8, h - 8);
+      this.wpanel(x - 3, y - 3, w + 6, h + 6, 0x0b0a12, border);
+      this.winLow.lineStyle(1, 0x2a2636, 1).strokeRect(x + 4, y + 4, w - 8, h - 8);
     }
+  }
+
+  /** Panel rysowany w warstwie okien (nad teksturami paneli). */
+  private wpanel(x: number, y: number, w: number, h: number, fill: number, border: number) {
+    this.winLow.fillStyle(fill, 0.94).fillRect(x, y, w, h);
+    this.winLow.lineStyle(2, border, 1).strokeRect(x, y, w, h);
   }
 
   private panel(x: number, y: number, w: number, h: number, fill: number, border: number) {
