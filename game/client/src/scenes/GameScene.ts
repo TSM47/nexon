@@ -9,7 +9,6 @@ import {
   DASH,
   MSG,
   NPC,
-  NPC_DIALOG,
   ITEMS,
   MANA,
   type InputMessage,
@@ -57,13 +56,6 @@ export class GameScene extends Phaser.Scene {
   private npcPhase = Math.random() * Math.PI * 2;
   private npcPrompt!: Phaser.GameObjects.Container;
   private npcNear = false;
-  private dialogLine = -1; // -1 = dialog zamknięty
-  private dialogShown = 0; // ile znaków bieżącej kwestii już "napisano"
-  private dialogBubble!: Phaser.GameObjects.Container;
-  private dialogBg!: Phaser.GameObjects.Graphics;
-  private dialogName!: Phaser.GameObjects.Text;
-  private dialogTextObj!: Phaser.GameObjects.Text;
-  private dialogHint!: Phaser.GameObjects.Text;
 
   constructor() {
     super("game");
@@ -145,24 +137,30 @@ export class GameScene extends Phaser.Scene {
       interact: Phaser.Input.Keyboard.KeyCodes.E,
       trade: Phaser.Input.Keyboard.KeyCodes.T,
       inventory: Phaser.Input.Keyboard.KeyCodes.I,
+      character: Phaser.Input.Keyboard.KeyCodes.C,
+      quests: Phaser.Input.Keyboard.KeyCodes.Q,
+      skills: Phaser.Input.Keyboard.KeyCodes.K,
+      escape: Phaser.Input.Keyboard.KeyCodes.ESC,
     }) as Record<string, Phaser.Input.Keyboard.Key>;
 
     this.keys.interact.on("down", () => this.onInteract());
     this.keys.trade.on("down", () => this.onTrade());
-    this.keys.inventory.on("down", () => {
-      this.registry.set("invOpen", !this.registry.get("invOpen"));
-    });
+    this.keys.inventory.on("down", () => this.toggleWindow("inv"));
+    this.keys.character.on("down", () => this.toggleWindow("char"));
+    this.keys.quests.on("down", () => this.toggleWindow("quests"));
+    this.keys.skills.on("down", () => this.toggleWindow("skills"));
+    this.keys.escape.on("down", () => this.closeAllUi());
 
     this.keys.dash.on("down", () => {
-      if (!this.room) return;
+      if (!this.room || this.anyUiOpen()) return;
       this.room.send(MSG.dash);
       this.registry.set("cd_dash", { until: this.time.now + DASH.cooldown * 1000, dur: DASH.cooldown * 1000 });
     });
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (!this.room || !pointer.leftButtonDown()) return;
-      // Klik obsługuje UI, gdy otwarty jest sklep lub ekwipunek.
-      if (this.registry.get("tradeOpen") || this.registry.get("invOpen")) return;
+      // Klik obsługuje UI, gdy otwarte jest okno lub dialog.
+      if (this.anyUiOpen()) return;
       // Bez many nie strzelamy — mignij paskiem many.
       const me = this.room.state.players.get(this.localId);
       if (me && me.mp < MANA.skillshotCost) {
@@ -192,8 +190,10 @@ export class GameScene extends Phaser.Scene {
   private sendInput(time: number) {
     if (time - this.lastInputSent < NET.inputSendMs) return;
     this.lastInputSent = time;
-    const mx = (this.keys.right.isDown ? 1 : 0) - (this.keys.left.isDown ? 1 : 0);
-    const my = (this.keys.down.isDown ? 1 : 0) - (this.keys.up.isDown ? 1 : 0);
+    // Zamroź ruch, gdy otwarte okno/dialog (by gracz nie odszedł od NPC).
+    const frozen = this.anyUiOpen();
+    const mx = frozen ? 0 : (this.keys.right.isDown ? 1 : 0) - (this.keys.left.isDown ? 1 : 0);
+    const my = frozen ? 0 : (this.keys.down.isDown ? 1 : 0) - (this.keys.up.isDown ? 1 : 0);
     const aim = this.aimVector() ?? { x: 1, y: 0 };
     const msg: InputMessage = { mx, my, ax: aim.x, ay: aim.y };
     this.room?.send(MSG.input, msg);
@@ -673,16 +673,22 @@ export class GameScene extends Phaser.Scene {
       top = -6 - effH * 0.7;
     }
     this.npcSprite.setScale(this.npcBaseScale);
+    // Plakietka nad głową: imię + podtytuł (właściciel karczmy).
     const name = this.add
-      .text(0, top - 12, NPC.name, { fontFamily: "monospace", fontSize: "11px", color: "#ffe2a8" })
+      .text(0, top - 26, NPC.name, { fontFamily: "monospace", fontSize: "12px", color: "#ffe9b0", fontStyle: "bold" })
       .setOrigin(0.5)
-      .setStroke("#1a2a14", 3);
-    this.add.container(NPC.x, NPC.y, [shadow, this.npcSprite, name]).setDepth(14);
+      .setStroke("#141019", 4)
+      .setShadow(0, 2, "#000000", 2, true, true);
+    const title = this.add
+      .text(0, top - 11, NPC.title, { fontFamily: "monospace", fontSize: "10px", color: "#c9a86a" })
+      .setOrigin(0.5)
+      .setStroke("#141019", 3);
+    this.add.container(NPC.x, NPC.y, [shadow, this.npcSprite, name, title]).setDepth(14);
 
     // Podpowiedź interakcji: [E] Rozmawiaj · [T] Handluj
     const promptBg = this.add
-      .rectangle(0, 0, 224, 30, 0x0e1420, 0.88)
-      .setStrokeStyle(2, 0x3a4a66);
+      .rectangle(0, 0, 224, 30, 0x0b0a12, 0.9)
+      .setStrokeStyle(2, 0x5a4a78);
     const capE = this.keycap(-96, "E");
     const labelE = this.add
       .text(-82, 0, "Rozmawiaj", { fontFamily: "monospace", fontSize: "12px", color: "#e8ecf4" })
@@ -692,32 +698,9 @@ export class GameScene extends Phaser.Scene {
       .text(28, 0, "Handluj", { fontFamily: "monospace", fontSize: "12px", color: "#e8ecf4" })
       .setOrigin(0, 0.5);
     this.npcPrompt = this.add
-      .container(NPC.x, NPC.y + top - 34, [promptBg, capE, labelE, capT, labelT])
+      .container(NPC.x, NPC.y + top - 44, [promptBg, capE, labelE, capT, labelT])
       .setDepth(40)
       .setVisible(false);
-
-    // Ozdobny dymek dialogowy nad kupcem (złota ramka + nagłówek z imieniem).
-    this.dialogBg = this.add.graphics();
-    this.dialogName = this.add
-      .text(0, 0, NPC.name, { fontFamily: "monospace", fontSize: "12px", color: "#ffe2a8", fontStyle: "bold" })
-      .setOrigin(0, 0.5);
-    this.dialogTextObj = this.add
-      .text(0, 0, "", {
-        fontFamily: "monospace",
-        fontSize: "13px",
-        color: "#f2ead6",
-        wordWrap: { width: 270 },
-        lineSpacing: 5,
-      })
-      .setOrigin(0, 0);
-    this.dialogHint = this.add
-      .text(0, 0, "", { fontFamily: "monospace", fontSize: "10px", color: "#c9a86a" })
-      .setOrigin(1, 0.5);
-    this.dialogBubble = this.add
-      .container(NPC.x, NPC.y + top - 6, [this.dialogBg, this.dialogName, this.dialogTextObj, this.dialogHint])
-      .setDepth(45)
-      .setVisible(false);
-
   }
 
   /** Rysowany klawisz klawiatury (keycap) z literą. */
@@ -738,111 +721,50 @@ export class GameScene extends Phaser.Scene {
     this.npcSprite.scaleX = this.npcBaseScale * (1 - s * 0.015);
   }
 
-  private updateNpcInteraction(delta: number) {
+  private updateNpcInteraction(_delta: number) {
     const meView = this.players.get(this.localId);
     if (!meView) return;
 
     const d = Math.hypot(meView.container.x - NPC.x, meView.container.y - NPC.y);
     const near = d <= NPC.interactRadius;
-    if (near !== this.npcNear) {
-      this.npcNear = near;
-      if (!near) {
-        // Odejście przerywa rozmowę i zamyka handel.
-        this.closeDialog();
-        this.registry.set("tradeOpen", false);
-      }
+    this.npcNear = near;
+    if (!near) {
+      // Odejście przerywa rozmowę i zamyka handel.
+      if (this.registry.get("dialogOpen")) this.registry.set("dialogOpen", false);
+      if (this.registry.get("uiWindow") === "trade") this.registry.set("uiWindow", null);
     }
-
-    this.npcPrompt.setVisible(near && this.dialogLine < 0 && !this.registry.get("tradeOpen"));
-
-    // Efekt pisania (typewriter) w dymku nad kupcem.
-    if (this.dialogLine >= 0) {
-      const full = NPC_DIALOG[this.dialogLine];
-      if (this.dialogShown < full.length) {
-        this.dialogShown = Math.min(full.length, this.dialogShown + (delta / 1000) * 38);
-      }
-      const done = this.dialogShown >= full.length;
-      this.dialogTextObj.setText(full.slice(0, Math.floor(this.dialogShown)));
-      this.dialogHint.setText(
-        done ? (this.dialogLine + 1 < NPC_DIALOG.length ? "E ▸ dalej" : "E ▸ zakończ") : ""
-      );
-    }
+    const busy = this.registry.get("dialogOpen") || this.registry.get("uiWindow");
+    this.npcPrompt.setVisible(near && !busy);
   }
 
+  /** E przy NPC — otwiera rozmowę (dalej obsługuje ją UIScene). */
   private onInteract() {
-    if (!this.npcNear || this.registry.get("tradeOpen")) return;
-    if (this.dialogLine < 0) {
-      this.startDialogLine(0);
-      return;
-    }
-    const full = NPC_DIALOG[this.dialogLine];
-    if (this.dialogShown < full.length) {
-      // Drugi E w trakcie pisania — dokończ kwestię od razu.
-      this.dialogShown = full.length;
-    } else if (this.dialogLine + 1 < NPC_DIALOG.length) {
-      this.startDialogLine(this.dialogLine + 1);
-    } else {
-      this.closeDialog();
-    }
+    if (!this.npcNear || this.anyUiOpen()) return;
+    this.registry.set("dialogOpen", true);
   }
 
+  /** T przy NPC — otwiera okno handlu. */
   private onTrade() {
     if (!this.npcNear) return;
-    const open = !this.registry.get("tradeOpen");
-    if (open) this.closeDialog();
-    this.registry.set("tradeOpen", open);
+    if (this.registry.get("dialogOpen")) this.registry.set("dialogOpen", false);
+    this.toggleWindow("trade");
   }
 
-  private startDialogLine(index: number) {
-    this.dialogLine = index;
-    this.dialogShown = 0;
-
-    // Zmierz pełną kwestię, by dymek nie zmieniał rozmiaru podczas pisania.
-    const full = NPC_DIALOG[index];
-    this.dialogTextObj.setText(full);
-    const tw = Math.max(this.dialogTextObj.width, this.dialogName.width + 60);
-    const th = this.dialogTextObj.height;
-    this.dialogTextObj.setText("");
-
-    const padX = 16;
-    const headH = 26;
-    const w = tw + padX * 2;
-    const h = headH + th + 24;
-
-    const g = this.dialogBg;
-    g.clear();
-    // Cień pod dymkiem.
-    g.fillStyle(0x000000, 0.35);
-    g.fillRoundedRect(-w / 2 + 3, -h - 14 + 4, w, h, 10);
-    // Korpus + złota ramka podwójna.
-    g.fillStyle(0x0b0f18, 0.96);
-    g.fillRoundedRect(-w / 2, -h - 14, w, h, 10);
-    g.lineStyle(2, 0x8a6a3c, 1);
-    g.strokeRoundedRect(-w / 2, -h - 14, w, h, 10);
-    g.lineStyle(1, 0x54452a, 1);
-    g.strokeRoundedRect(-w / 2 + 4, -h - 10, w - 8, h - 8, 7);
-    // Pasek nagłówka.
-    g.fillStyle(0x1a1626, 0.9);
-    g.fillRoundedRect(-w / 2 + 4, -h - 10, w - 8, headH - 6, { tl: 7, tr: 7, bl: 0, br: 0 });
-    g.lineStyle(1, 0x54452a, 1);
-    g.lineBetween(-w / 2 + 6, -h - 14 + headH, w / 2 - 6, -h - 14 + headH);
-    // Dzióbek wskazujący kupca.
-    g.fillStyle(0x0b0f18, 0.96);
-    g.fillTriangle(-9, -15, 9, -15, 0, -2);
-    g.lineStyle(2, 0x8a6a3c, 1);
-    g.lineBetween(-9, -14, 0, -2);
-    g.lineBetween(9, -14, 0, -2);
-
-    this.dialogName.setPosition(-w / 2 + padX, -h - 14 + headH / 2 - 2);
-    this.dialogTextObj.setPosition(-w / 2 + padX, -h - 14 + headH + 6);
-    this.dialogHint.setPosition(w / 2 - 10, -22);
-    this.dialogBubble.setVisible(true);
+  /** Czy otwarte jest jakiekolwiek okno lub dialog (blokuje strzał). */
+  private anyUiOpen(): boolean {
+    return !!this.registry.get("dialogOpen") || !!this.registry.get("uiWindow");
   }
 
-  private closeDialog() {
-    this.dialogLine = -1;
-    this.dialogShown = 0;
-    if (this.dialogBubble) this.dialogBubble.setVisible(false);
+  /** Przełącza duże okno; otwarcie jednego zamyka pozostałe i dialog. */
+  private toggleWindow(id: string) {
+    const cur = this.registry.get("uiWindow");
+    this.registry.set("dialogOpen", false);
+    this.registry.set("uiWindow", cur === id ? null : id);
+  }
+
+  private closeAllUi() {
+    this.registry.set("dialogOpen", false);
+    this.registry.set("uiWindow", null);
   }
 
   // ---------- Efekty ----------

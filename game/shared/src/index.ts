@@ -104,22 +104,15 @@ export const PLAYER = {
   radius: 16,
 } as const;
 
-/** NPC — wędrowny kupiec stojący przy południowym skraju areny. */
+/** NPC — Eldric Ashford, właściciel karczmy przy skraju łąki. */
 export const NPC = {
-  name: "Eldric — Wędrowny Kupiec",
+  name: "Eldric Ashford",
+  title: "Właściciel karczmy",
   x: 420,
   y: 1000,
   /** Dystans, w którym pojawia się podpowiedź interakcji. */
   interactRadius: 95,
 } as const;
-
-/** Kwestie dialogowe kupca (wyświetlane z efektem pisania). */
-export const NPC_DIALOG: string[] = [
-  "Witaj, wędrowcze! Rzadko ktoś zagląda w te ruiny…",
-  "Widzisz ten krąg run? Strażnik Aetheru pilnuje go od wieków. Wielu śmiałków tu poległo.",
-  "Dobra rada: gdy ziemia rozbłyśnie czerwienią — uciekaj albo rób unik. Spacja to twój przyjaciel.",
-  "Zbieraj łupy, a gdy wrócisz z monetami, pohandlujemy. Wciśnij T, by zerknąć na mój towar.",
-];
 
 export type ItemRarity = "common" | "epic" | "legendary";
 
@@ -202,6 +195,8 @@ export const SHOP_STOCK: string[] = [
 
 export const START_GOLD = 600;
 export const INVENTORY_CAP = 24;
+/** Sprzedaż przedmiotu handlarzowi: ułamek ceny zakupu. */
+export const SELL_RATIO = 0.5;
 
 /** Komunikaty klient → serwer. */
 export const MSG = {
@@ -211,6 +206,8 @@ export const MSG = {
   setClass: "setClass",
   /** Kup przedmiot (payload: id z ITEMS). */
   buy: "buy",
+  /** Sprzedaj przedmiot handlarzowi (payload: id z ITEMS). */
+  sell: "sell",
   /** Załóż/zdejmij przedmiot lub użyj mikstury (payload: id z ITEMS). */
   equipToggle: "equipToggle",
 } as const;

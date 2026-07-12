@@ -12,6 +12,7 @@ import {
   START_GOLD,
   START_GEMS,
   INVENTORY_CAP,
+  SELL_RATIO,
   MANA,
   XP,
   PLAYER,
@@ -140,6 +141,23 @@ export class CombatRoom extends Room<GameState> {
       if (p.gold < def.price || p.inventory.length >= INVENTORY_CAP) return;
       p.gold -= def.price;
       p.inventory.push(def.id);
+    });
+
+    this.onMessage(MSG.sell, (client, itemId: string) => {
+      const p = this.state.players.get(client.sessionId);
+      const def = ITEMS[itemId];
+      if (!p || !def) return;
+      const idx = p.inventory.indexOf(def.id);
+      if (idx < 0) return;
+      // Zdejmij, jeśli sprzedawany przedmiot był założony.
+      let equippedAt: string | null = null;
+      p.equipment.forEach((v, k) => {
+        if (v === def.id) equippedAt = k;
+      });
+      if (equippedAt) p.equipment.delete(equippedAt);
+      p.inventory.splice(idx, 1);
+      p.gold += Math.floor(def.price * SELL_RATIO);
+      this.recalcStats(p);
     });
 
     this.onMessage(MSG.equipToggle, (client, itemId: string) => {
